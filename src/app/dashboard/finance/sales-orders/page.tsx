@@ -3,7 +3,27 @@
 import React, { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import axios from "axios";
-import { Receipt, Plus, CheckCircle, XCircle, ArrowRight, Loader2, FileText, ChevronDown } from "lucide-react";
+import { 
+  Receipt, 
+  Plus, 
+  Trash2, 
+  CheckCircle, 
+  XCircle, 
+  ArrowRight, 
+  Loader2, 
+  FileText, 
+  ChevronDown,
+  Info,
+  Sparkles
+} from "lucide-react";
+
+interface SalesLine {
+  stockItemId: string;
+  unitOfSale: "sell" | "stock";
+  quantity: number;
+  unitPrice: number;
+  taxRate: number;
+}
 
 export default function SalesOrdersPage() {
   const { token, user, activeLanguage, activeCurrency } = useApp();
@@ -20,12 +40,10 @@ export default function SalesOrdersPage() {
   const [currency, setCurrency] = useState("GBP");
   const [exchangeRate, setExchangeRate] = useState(1.0);
 
-  // Line item states
-  const [selectedStockId, setSelectedStockId] = useState("");
-  const [unitOfSale, setUnitOfSale] = useState<"stock" | "sell">("sell");
-  const [lineQty, setLineQty] = useState(10);
-  const [linePrice, setLinePrice] = useState(15.0);
-  const [vatRate, setVatRate] = useState(0.20);
+  // Multi-line items state
+  const [lines, setLines] = useState<SalesLine[]>([
+    { stockItemId: "", unitOfSale: "sell", quantity: 10, unitPrice: 15.0, taxRate: 0.20 }
+  ]);
   
   const [submitting, setSubmitting] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -35,18 +53,6 @@ export default function SalesOrdersPage() {
       fetchData();
     }
   }, [token]);
-
-  useEffect(() => {
-    const prod = stockList.find(item => String(item.id) === String(selectedStockId));
-    if (prod) {
-      if (unitOfSale === "stock") {
-        setLinePrice(prod.basePrice || 0);
-      } else {
-        const ratio = prod.conversionRatio || 1;
-        setLinePrice(Number(((prod.basePrice || 0) / ratio).toFixed(4)));
-      }
-    }
-  }, [selectedStockId, unitOfSale, stockList]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -61,9 +67,6 @@ export default function SalesOrdersPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStockList(stockRes.data);
-      if (stockRes.data.length > 0) {
-        setSelectedStockId(stockRes.data[0].id);
-      }
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to load sales orders.");
     } finally {
@@ -71,30 +74,72 @@ export default function SalesOrdersPage() {
     }
   };
 
+  const handleAddLine = () => {
+    setLines([...lines, { stockItemId: "", unitOfSale: "sell", quantity: 10, unitPrice: 15.0, taxRate: 0.20 }]);
+  };
+
+  const handleRemoveLine = (index: number) => {
+    if (lines.length > 1) {
+      setLines(lines.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleLineChange = (index: number, field: keyof SalesLine, value: any) => {
+    const newLines = [...lines];
+    newLines[index] = {
+      ...newLines[index],
+      [field]: value
+    } as SalesLine;
+
+    // Auto-update price when product or unit of sale changes
+    if (field === "stockItemId" || field === "unitOfSale") {
+      const selectedItem = stockList.find(item => String(item.id) === String(newLines[index].stockItemId));
+      if (selectedItem) {
+        if (newLines[index].unitOfSale === "stock") {
+          newLines[index].unitPrice = selectedItem.basePrice || 0;
+        } else {
+          const ratio = selectedItem.conversionRatio || 1;
+          newLines[index].unitPrice = Number(((selectedItem.basePrice || 0) / ratio).toFixed(4));
+        }
+      }
+    }
+
+    setLines(newLines);
+  };
+
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
+
+    if (lines.some(l => !l.stockItemId || l.quantity <= 0 || l.unitPrice < 0)) {
+      setError("Please ensure all lines have a valid item selected, quantity > 0, and non-negative price.");
+      setSubmitting(false);
+      return;
+    }
+
     try {
-      const prod = stockList.find(item => String(item.id) === String(selectedStockId));
-      const ratio = prod ? (prod.conversionRatio || 1) : 1;
- 
-      const qtyToSend = unitOfSale === "stock" ? Number(lineQty) * ratio : Number(lineQty);
-      const priceToSend = unitOfSale === "stock" ? Number(linePrice) / ratio : Number(linePrice);
- 
+      const payloadLines = lines.map(line => {
+        const prod = stockList.find(item => String(item.id) === String(line.stockItemId));
+        const ratio = prod ? (prod.conversionRatio || 1) : 1;
+
+        const qtyToSend = line.unitOfSale === "stock" ? Number(line.quantity) * ratio : Number(line.quantity);
+        const priceToSend = line.unitOfSale === "stock" ? Number(line.unitPrice) / ratio : Number(line.unitPrice);
+
+        return {
+          stockItemId: Number(line.stockItemId),
+          quantity: qtyToSend,
+          unitPrice: priceToSend,
+          taxRate: Number(line.taxRate)
+        };
+      });
+
       const payload = {
         orderNumber,
         customerName,
         currencyCode: currency,
         exchangeRateToBase: Number(exchangeRate),
-        lines: [
-          {
-            stockItemId: selectedStockId,
-            quantity: qtyToSend,
-            unitPrice: priceToSend,
-            taxRate: Number(vatRate)
-          }
-        ]
+        lines: payloadLines
       };
 
       await axios.post("http://localhost:5000/api/finance/sales-orders", payload, {
@@ -104,6 +149,7 @@ export default function SalesOrdersPage() {
       setShowModal(false);
       setCustomerName("");
       setOrderNumber("");
+      setLines([{ stockItemId: "", unitOfSale: "sell", quantity: 10, unitPrice: 15.0, taxRate: 0.20 }]);
       fetchData();
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to draft sales order.");
@@ -165,29 +211,33 @@ export default function SalesOrdersPage() {
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[#e1e5eb] pb-5">
         <div>
-          <span className="text-[10px] font-bold text-[#00b7e2] uppercase tracking-widest">Sales</span>
+          <span className="text-[10px] font-bold text-[#00b7e2] uppercase tracking-widest flex items-center gap-1">
+            <Sparkles className="w-3 h-3 text-[#00b7e2] fill-[#00b7e2]" /> Order Management
+          </span>
           <h2 className="text-2xl font-bold text-[#1a2d3c] mt-0.5">Sales Orders</h2>
           <p className="text-slate-500 text-xs mt-1">Record contracts, approve them to trigger warehouse picking, and dispatch shipments to customers.</p>
         </div>
         <button
           onClick={() => {
             setOrderNumber(`SO-2026-000${orders.length + 1}`);
+            setCustomerName("");
+            setLines([{ stockItemId: "", unitOfSale: "sell", quantity: 10, unitPrice: 15.0, taxRate: 0.20 }]);
             setShowModal(true);
           }}
-          className="py-2 px-4 rounded bg-[#00b7e2] hover:bg-[#009dc4] text-white shadow-sm font-semibold flex items-center gap-2 text-xs transition-all active:scale-95"
+          className="py-2.5 px-4 rounded bg-[#00b7e2] hover:bg-[#009dc4] text-white font-semibold flex items-center gap-2 text-xs transition-all active:scale-95 cursor-pointer shadow-sm shadow-[#00b7e2]/10"
         >
           <Plus className="w-4 h-4" /> Raise Sales Order
         </button>
       </div>
 
-      {error && (
-        <div className="p-4 rounded bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+      {error && !showModal && (
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-xs">
           {error}
         </div>
       )}
 
       {/* Orders List Card */}
-      <div className="p-6 rounded border border-[#e1e5eb] bg-white shadow-sm space-y-4">
+      <div className="p-6 rounded-2xl border border-[#e1e5eb] bg-white shadow-sm space-y-4">
         <h3 className="text-sm font-bold text-[#1a2d3c] flex items-center gap-2">
           <FileText className="w-5 h-5 text-[#00b7e2]" />
           Sales Order Logs
@@ -202,9 +252,10 @@ export default function SalesOrdersPage() {
             {orders.map((order) => {
               const badge = getStatusBadge(order.status);
               const isAdminOrAccounts = user?.role === "CompanyAdmin" || user?.role === "Accounts" || user?.role === "GlobalAdmin";
+              const isCreator = String(order.createdByUserId) === String(user?.id);
 
               return (
-                <div key={order.id} className="p-4 bg-white border border-[#e1e5eb] hover:border-slate-300 rounded flex items-center justify-between text-xs transition-all hover:shadow-sm">
+                <div key={order.id} className="p-4 bg-white border border-[#e1e5eb] hover:border-slate-350 rounded-2xl flex items-center justify-between text-xs transition-all hover:shadow-sm">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-bold text-[#00b7e2] text-sm">{order.orderNumber}</span>
@@ -214,7 +265,9 @@ export default function SalesOrdersPage() {
                     </div>
                     <div className="flex gap-4 text-[10px] text-slate-400">
                       <span>Customer: <strong className="text-slate-600">{order.customerName}</strong></span>
-                      <span>Item: <strong className="text-slate-600">{getTranslatedName(order.lines[0]?.stockItem?.nameJson)} ({order.lines[0]?.quantity} units)</strong></span>
+                      <span className="max-w-xs truncate">Items: <strong className="text-slate-650">
+                        {order.lines.map((l: any) => `${getTranslatedName(l.stockItem?.nameJson)} (${l.quantity} units)`).join(", ")}
+                      </strong></span>
                     </div>
                   </div>
 
@@ -224,20 +277,26 @@ export default function SalesOrdersPage() {
                       <span className="block text-[9px] text-slate-400 mt-0.5">Ex VAT: {formatMoney(order.totalNet, order.currencyCode)}</span>
                     </div>
 
-                    <div className="min-w-[120px] text-right">
-                      {order.status === 0 ? ( // Draft
+                    <div className="min-w-[130px] text-right">
+                      {order.status === 0 ? (
                         isAdminOrAccounts ? (
-                          <button
-                            onClick={() => handleApprove(order.id)}
-                            disabled={processingId === order.id}
-                            className="py-1 px-3 rounded bg-[#00b7e2] hover:bg-[#009dc4] text-white font-semibold text-[10px] flex items-center gap-1 transition-colors disabled:opacity-50 inline-block text-center"
-                          >
-                            {processingId === order.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin mx-auto" />
-                            ) : (
-                              <span className="flex items-center gap-1">Approve Order <ArrowRight className="w-3 h-3" /></span>
-                            )}
-                          </button>
+                          isCreator ? (
+                            <span className="text-[10px] text-rose-500 bg-rose-50 border border-rose-200 rounded-lg px-2 py-1 font-semibold flex items-center justify-end w-fit ml-auto gap-1">
+                              <Info className="w-3 h-3" /> Creator Restricted Approval
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleApprove(order.id)}
+                              disabled={processingId === order.id}
+                              className="py-1 px-3 rounded bg-[#00b7e2] hover:bg-[#009dc4] text-white font-semibold text-[10px] flex items-center gap-1 transition-colors disabled:opacity-50 inline-block text-center cursor-pointer active:scale-95"
+                            >
+                              {processingId === order.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin mx-auto" />
+                              ) : (
+                                <span className="flex items-center gap-1">Approve Order <ArrowRight className="w-3 h-3" /></span>
+                              )}
+                            </button>
+                          )
                         ) : (
                           <span className="px-2 py-0.5 text-[9px] font-bold bg-[#fef9c3] border border-[#fef08a] text-[#854d0e] rounded-full uppercase">
                             Awaiting Audit
@@ -260,10 +319,19 @@ export default function SalesOrdersPage() {
 
       {/* Raise Order Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-[2px] px-4">
-          <div className="w-full max-w-md p-6 bg-white border border-[#e1e5eb] rounded shadow-2xl space-y-5 text-slate-800">
-            <h3 className="text-base font-bold text-[#1a2d3c] border-b border-[#e1e5eb] pb-3">Draft Sales Order Contract</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-2xl p-6 bg-white border border-[#e1e5eb] rounded-2xl shadow-2xl space-y-5 text-slate-800 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-[#e1e5eb] pb-3">
+              <h3 className="text-base font-bold text-[#1a2d3c]">Draft Sales Order Contract</h3>
+              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+            </div>
             
+            {error && (
+              <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-xs">
+                {error}
+              </div>
+            )}
+
             <form onSubmit={handleCreateOrder} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -274,7 +342,7 @@ export default function SalesOrdersPage() {
                     value={orderNumber}
                     onChange={(e) => setOrderNumber(e.target.value)}
                     placeholder="SO-2026-0001"
-                    className="w-full mt-1 text-xs px-3 py-2 bg-white border border-[#ccd3db] rounded focus:outline-none focus:border-[#00b7e2] text-slate-800"
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-[#00b7e2] text-slate-800 font-mono"
                   />
                 </div>
                 <div>
@@ -285,7 +353,7 @@ export default function SalesOrdersPage() {
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     placeholder="John Builders Ltd"
-                    className="w-full mt-1 text-xs px-3 py-2 bg-white border border-[#ccd3db] rounded focus:outline-none focus:border-[#00b7e2] text-slate-800"
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-[#00b7e2] text-slate-800"
                   />
                 </div>
               </div>
@@ -299,7 +367,7 @@ export default function SalesOrdersPage() {
                       setCurrency(e.target.value);
                       setExchangeRate(e.target.value === "GBP" ? 1.0 : (e.target.value === "USD" ? 1.25 : 1.15));
                     }}
-                    className="w-full mt-1 text-xs px-3 py-2 bg-white border border-[#ccd3db] rounded focus:outline-none focus:border-[#00b7e2] text-slate-800"
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-[#00b7e2] text-slate-800"
                   >
                     <option value="GBP">GBP (£)</option>
                     <option value="USD">USD ($)</option>
@@ -314,160 +382,216 @@ export default function SalesOrdersPage() {
                     required
                     value={exchangeRate}
                     onChange={(e) => setExchangeRate(Number(e.target.value))}
-                    className="w-full mt-1 text-xs px-3 py-2 bg-white border border-[#ccd3db] rounded focus:outline-none focus:border-[#00b7e2] text-slate-800"
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-[#00b7e2] text-slate-800"
                   />
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50 border border-[#ccd3db] rounded space-y-3">
-                <span className="block text-[10px] font-bold uppercase text-slate-500">Order Line Details</span>
-                
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-500">Select Product</label>
-                  <select
-                    value={selectedStockId}
-                    onChange={(e) => setSelectedStockId(e.target.value)}
-                    className="w-full mt-1 text-xs px-3 py-2 bg-white border border-[#ccd3db] rounded text-slate-800 focus:outline-none focus:border-[#00b7e2]"
+              {/* Line Items Editor */}
+              <div className="space-y-3 border-t border-slate-100 pt-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-slate-800">Order Line Items</span>
+                  <button
+                    type="button"
+                    onClick={handleAddLine}
+                    className="text-[10px] font-bold text-[#00b7e2] hover:text-[#009dc4] bg-[#00b7e2]/5 hover:bg-[#00b7e2]/10 px-2.5 py-1 border border-[#00b7e2]/30 rounded flex items-center gap-1 cursor-pointer"
                   >
-                    {stockList.map((item) => (
-                      <option key={item.id} value={item.id}>{item.sku} - {getTranslatedName(item.name)}</option>
-                    ))}
-                  </select>
+                    <Plus className="w-3.5 h-3.5" /> Add Product Line
+                  </button>
                 </div>
- 
-                {(() => {
-                  const selectedProduct = stockList.find(item => String(item.id) === String(selectedStockId));
-                  if (!selectedProduct) return null;
- 
-                  const ratio = selectedProduct.conversionRatio || 1;
-                  const rawBase = selectedProduct.basePrice || 0;
-                  const activeBase = unitOfSale === "stock" ? rawBase : rawBase / ratio;
- 
-                  const contractPrice = Number((activeBase * 0.8).toFixed(4));
-                  const groupPrice = Number((activeBase * 0.9).toFixed(4));
-                  const promoPrice = Number((activeBase * 0.85).toFixed(4));
-                  const basePriceVal = Number(activeBase.toFixed(4));
- 
-                  return (
-                    <>
-                      <div className="grid grid-cols-2 gap-3 text-xs text-slate-800">
-                        <div>
-                          <label className="text-[9px] font-bold uppercase text-slate-500">Unit of Sale</label>
-                          <select
-                            value={unitOfSale}
-                            onChange={(e) => setUnitOfSale(e.target.value as any)}
-                            className="w-full mt-1 text-xs px-3 py-2 bg-white border border-[#ccd3db] rounded focus:outline-none focus:border-[#00b7e2]"
+
+                <div className="space-y-3 max-h-[35vh] overflow-y-auto pr-1">
+                  {lines.map((line, idx) => {
+                    const selectedProduct = stockList.find(item => String(item.id) === String(line.stockItemId));
+                    
+                    // Pricing tiers calculation
+                    let contractPrice = 0;
+                    let groupPrice = 0;
+                    let promoPrice = 0;
+                    let basePriceVal = 0;
+                    
+                    if (selectedProduct) {
+                      const ratio = selectedProduct.conversionRatio || 1;
+                      const rawBase = selectedProduct.basePrice || 0;
+                      const activeBase = line.unitOfSale === "stock" ? rawBase : rawBase / ratio;
+
+                      contractPrice = Number((activeBase * 0.8).toFixed(4));
+                      groupPrice = Number((activeBase * 0.9).toFixed(4));
+                      promoPrice = Number((activeBase * 0.85).toFixed(4));
+                      basePriceVal = Number(activeBase.toFixed(4));
+                    }
+
+                    return (
+                      <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 relative">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <label className="text-[9px] font-bold uppercase text-slate-500">Select Product</label>
+                            <select
+                              value={line.stockItemId}
+                              onChange={(e) => handleLineChange(idx, "stockItemId", e.target.value)}
+                              required
+                              className="w-full mt-1 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none"
+                            >
+                              <option value="">Choose Catalog Item</option>
+                              {stockList.map(item => (
+                                <option key={item.id} value={item.id}>
+                                  {item.sku} - {getTranslatedName(item.name)}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="text-[9px] font-bold uppercase text-slate-500">Unit of measure</label>
+                            <select
+                              value={line.unitOfSale}
+                              disabled={!selectedProduct}
+                              onChange={(e) => handleLineChange(idx, "unitOfSale", e.target.value)}
+                              className="w-full mt-1 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none disabled:opacity-50"
+                            >
+                              <option value="sell">Selling Unit ({selectedProduct?.sellUnitOfSale || "Each"})</option>
+                              <option value="stock">Stocking Unit ({selectedProduct?.stockUnitOfSale || "Pallet"})</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {selectedProduct && (
+                          <div className="flex justify-between items-center text-[10px] text-slate-400 bg-white border border-slate-200/50 p-2 rounded-lg">
+                            <span className="font-semibold italic">
+                              Ratio: 1 {selectedProduct.stockUnitOfSale || "Pallet"} = {selectedProduct.conversionRatio || 1} {selectedProduct.sellUnitOfSale || "Each"}
+                            </span>
+                            <span className="text-[9px] text-[#00b7e2] font-semibold">
+                              Base: {formatMoney(selectedProduct.basePrice, "GBP")} / {selectedProduct.stockUnitOfSale || "Pallet"}
+                            </span>
+                          </div>
+                        )}
+
+                        {selectedProduct && (
+                          <div className="border border-slate-200 bg-white p-2.5 rounded-xl space-y-1.5">
+                            <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-wide">
+                              Pricing Rules Quick-Apply
+                            </span>
+                            <div className="grid grid-cols-4 gap-1.5 text-[9px] text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleLineChange(idx, "unitPrice", contractPrice)}
+                                className="p-1 border border-slate-100 rounded hover:border-[#00b7e2] hover:bg-[#00b7e2]/5 text-slate-700 font-semibold cursor-pointer"
+                              >
+                                <span className="block text-[7px] text-[#00b7e2] font-bold uppercase">Contract</span>
+                                <span>{currency}{contractPrice.toFixed(2)}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleLineChange(idx, "unitPrice", groupPrice)}
+                                className="p-1 border border-slate-100 rounded hover:border-[#00b7e2] hover:bg-[#00b7e2]/5 text-slate-700 font-semibold cursor-pointer"
+                              >
+                                <span className="block text-[7px] text-[#00b7e2] font-bold uppercase">Group</span>
+                                <span>{currency}{groupPrice.toFixed(2)}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleLineChange(idx, "unitPrice", promoPrice)}
+                                className="p-1 border border-slate-100 rounded hover:border-[#00b7e2] hover:bg-[#00b7e2]/5 text-slate-700 font-semibold cursor-pointer"
+                              >
+                                <span className="block text-[7px] text-[#00b7e2] font-bold uppercase">Promo</span>
+                                <span>{currency}{promoPrice.toFixed(2)}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleLineChange(idx, "unitPrice", basePriceVal)}
+                                className="p-1 border border-slate-100 rounded hover:border-[#00b7e2] hover:bg-[#00b7e2]/5 text-slate-700 font-semibold cursor-pointer"
+                              >
+                                <span className="block text-[7px] text-[#00b7e2] font-bold uppercase">Base</span>
+                                <span>{currency}{basePriceVal.toFixed(2)}</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-3 gap-2 items-center">
+                          <div>
+                            <label className="text-[9px] font-bold uppercase text-slate-500">Quantity</label>
+                            <input
+                              type="number"
+                              required
+                              min="1"
+                              value={line.quantity}
+                              onChange={(e) => handleLineChange(idx, "quantity", Number(e.target.value))}
+                              className="w-full mt-1 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[9px] font-bold uppercase text-slate-500">Unit Price ({currency})</label>
+                            <input
+                              type="number"
+                              step="0.0001"
+                              required
+                              min="0"
+                              value={line.unitPrice}
+                              onChange={(e) => handleLineChange(idx, "unitPrice", Number(e.target.value))}
+                              className="w-full mt-1 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none text-right font-mono"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[9px] font-bold uppercase text-slate-500">VAT Rate</label>
+                            <select
+                              value={line.taxRate}
+                              onChange={(e) => handleLineChange(idx, "taxRate", Number(e.target.value))}
+                              className="w-full mt-1 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none"
+                            >
+                              <option value="0.20">20% Standard</option>
+                              <option value="0.05">5% Reduced</option>
+                              <option value="0.00">0% Zero-Rate</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {lines.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveLine(idx)}
+                            className="absolute top-2 right-2 text-rose-500 hover:text-rose-600 cursor-pointer"
                           >
-                            <option value="sell">Selling Unit ({selectedProduct.sellUnitOfSale || "Each"})</option>
-                            <option value="stock">Stocking Unit ({selectedProduct.stockUnitOfSale || "Pallet"})</option>
-                          </select>
-                        </div>
-                        <div className="flex items-end pb-2">
-                          <span className="text-[10px] text-slate-500 font-semibold italic">
-                            1 {selectedProduct.stockUnitOfSale} = {selectedProduct.conversionRatio} {selectedProduct.sellUnitOfSale}
-                          </span>
-                        </div>
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
- 
-                      {/* Complex Pricing Breakdown Widget */}
-                      <div className="border border-[#ccd3db] bg-white p-3 rounded space-y-2">
-                        <span className="block text-[9px] font-bold text-slate-500 uppercase tracking-wide">
-                          Pricing Tiers (Click to Apply)
-                        </span>
-                        <div className="grid grid-cols-2 gap-2 text-[10px]">
-                          <button
-                            type="button"
-                            onClick={() => setLinePrice(contractPrice)}
-                            className="p-1.5 text-left border border-slate-200 rounded hover:border-[#00b7e2] hover:bg-[#00b7e2]/5 text-slate-700 font-semibold cursor-pointer active:scale-95 transition-all"
-                          >
-                            <span className="block text-[8px] uppercase text-[#00b7e2] font-bold">Contract Pricing</span>
-                            <span>£{contractPrice.toFixed(2)}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setLinePrice(groupPrice)}
-                            className="p-1.5 text-left border border-slate-200 rounded hover:border-[#00b7e2] hover:bg-[#00b7e2]/5 text-slate-700 font-semibold cursor-pointer active:scale-95 transition-all"
-                          >
-                            <span className="block text-[8px] uppercase text-[#00b7e2] font-bold">Group Pricing</span>
-                            <span>£{groupPrice.toFixed(2)}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setLinePrice(promoPrice)}
-                            className="p-1.5 text-left border border-slate-200 rounded hover:border-[#00b7e2] hover:bg-[#00b7e2]/5 text-slate-700 font-semibold cursor-pointer active:scale-95 transition-all"
-                          >
-                            <span className="block text-[8px] uppercase text-[#00b7e2] font-bold">Promotional Pricing</span>
-                            <span>£{promoPrice.toFixed(2)}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setLinePrice(basePriceVal)}
-                            className="p-1.5 text-left border border-slate-200 rounded hover:border-[#00b7e2] hover:bg-[#00b7e2]/5 text-slate-700 font-semibold cursor-pointer active:scale-95 transition-all"
-                          >
-                            <span className="block text-[8px] uppercase text-[#00b7e2] font-bold">All Customer Pricing</span>
-                            <span>£{basePriceVal.toFixed(2)}</span>
-                          </button>
-                        </div>
-                      </div>
- 
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <label className="text-[9px] font-bold uppercase text-slate-500">
-                            Qty ({unitOfSale === "stock" ? selectedProduct.stockUnitOfSale : selectedProduct.sellUnitOfSale})
-                          </label>
-                          <input
-                            type="number"
-                            required
-                            value={lineQty}
-                            onChange={(e) => setLineQty(Number(e.target.value))}
-                            className="w-full mt-1 text-xs px-2.5 py-1.5 bg-white border border-[#ccd3db] rounded text-slate-800 focus:outline-none focus:border-[#00b7e2]"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[9px] font-bold uppercase text-slate-500">
-                            Price (per {unitOfSale === "stock" ? selectedProduct.stockUnitOfSale : selectedProduct.sellUnitOfSale})
-                          </label>
-                          <input
-                            type="number"
-                            step="0.0001"
-                            required
-                            value={linePrice}
-                            onChange={(e) => setLinePrice(Number(e.target.value))}
-                            className="w-full mt-1 text-xs px-2.5 py-1.5 bg-white border border-[#ccd3db] rounded text-slate-800 focus:outline-none focus:border-[#00b7e2]"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[9px] font-bold uppercase text-slate-500">VAT Rate</label>
-                          <select
-                            value={vatRate}
-                            onChange={(e) => setVatRate(Number(e.target.value))}
-                            className="w-full mt-1 text-xs px-2.5 py-1.5 bg-white border border-[#ccd3db] rounded text-slate-800 focus:outline-none focus:border-[#00b7e2]"
-                          >
-                            <option value="0.20">20% Standard</option>
-                            <option value="0.05">5% Reduced</option>
-                            <option value="0.00">0% Zero-Rate</option>
-                          </select>
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
+                    );
+                  })}
+                </div>
               </div>
 
+              {/* Total Value Summary */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex justify-between items-center text-xs font-semibold text-slate-800">
+                <span>Estimated Contract Value:</span>
+                <span className="text-sm font-bold text-[#00b7e2]">
+                  {formatMoney(lines.reduce((sum, l) => sum + (l.quantity * l.unitPrice), 0), currency)}
+                </span>
+              </div>
+
+              {/* Modal footer */}
               <div className="flex gap-3 justify-end pt-3 border-t border-[#e1e5eb]">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-[#ccd3db] text-slate-500 hover:text-slate-700 bg-white hover:bg-slate-50 text-xs font-semibold rounded"
+                  className="px-4 py-2 border border-[#ccd3db] text-slate-500 hover:text-slate-700 bg-white hover:bg-slate-50 text-xs font-semibold rounded cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 bg-[#00b7e2] hover:bg-[#009dc4] text-white text-xs font-semibold rounded disabled:opacity-50"
+                  className="px-4 py-2 bg-[#00b7e2] hover:bg-[#009dc4] text-white text-xs font-semibold rounded disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                 >
-                  Draft Order Sheet
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Drafting...
+                    </>
+                  ) : (
+                    "Draft Order Sheet"
+                  )}
                 </button>
               </div>
             </form>

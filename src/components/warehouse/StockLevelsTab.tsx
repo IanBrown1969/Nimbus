@@ -21,6 +21,8 @@ interface WarehouseQuantity {
   warehouseName: string;
   quantity: number;
   sellingQuantity: number;
+  freeStockQuantity: number;
+  freeStockSellingQuantity: number;
 }
  
 interface StockItem {
@@ -33,9 +35,15 @@ interface StockItem {
   conversionRatio: number;
   basePrice: number;
   enableForWebsite: boolean;
+  allowBackorder: boolean;
   stockingQuantity: number;
   sellingQuantity: number;
+  stockingDemand: number;
+  sellingDemand: number;
+  stockingFreeStock: number;
+  sellingFreeStock: number;
   warehouseQuantities: WarehouseQuantity[];
+  purchaseOrders?: any[];
   richDescription?: string | null;
   mediaUrls?: string | null;
   specifications?: string | null;
@@ -73,6 +81,7 @@ export default function StockLevelsTab({
   const [editRatio, setEditRatio] = useState(1);
   const [editPrice, setEditPrice] = useState(0);
   const [editEnableForWebsite, setEditEnableForWebsite] = useState(true);
+  const [editAllowBackorder, setEditAllowBackorder] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
  
@@ -96,6 +105,7 @@ export default function StockLevelsTab({
     setEditRatio(item.conversionRatio || 1);
     setEditPrice(item.basePrice || 0);
     setEditEnableForWebsite(item.enableForWebsite !== false);
+    setEditAllowBackorder(item.allowBackorder === true);
     setError(null);
   };
  
@@ -114,6 +124,7 @@ export default function StockLevelsTab({
         conversionRatio: Number(editRatio),
         basePrice: Number(editPrice),
         enableForWebsite: editEnableForWebsite,
+        allowBackorder: editAllowBackorder,
         richDescriptionJson: isPimActive ? JSON.stringify({ "en-GB": `<p>${editDescEn}</p>` }) : "{}",
         mediaUrlsJson: isPimActive ? (selectedItem.mediaUrls || "[]") : "[]",
         specificationsJson: isPimActive ? (selectedItem.specifications || "{}") : "{}"
@@ -153,6 +164,10 @@ export default function StockLevelsTab({
           warehouseName: wh.warehouseName,
           displayStockingQty: wh.quantity,
           displaySellingQty: wh.sellingQuantity,
+          displayStockingDemand: item.stockingDemand || 0,
+          displaySellingDemand: item.sellingDemand || 0,
+          displayStockingFreeStock: wh.freeStockQuantity ?? (wh.quantity - (item.stockingDemand || 0)),
+          displaySellingFreeStock: wh.freeStockSellingQuantity ?? (wh.sellingQuantity - (item.sellingDemand || 0)),
           isSplit: true
         });
       });
@@ -164,6 +179,10 @@ export default function StockLevelsTab({
         warehouseName: wh.warehouseName,
         displayStockingQty: wh.quantity,
         displaySellingQty: wh.sellingQuantity,
+        displayStockingDemand: item.stockingDemand || 0,
+        displaySellingDemand: item.sellingDemand || 0,
+        displayStockingFreeStock: wh.freeStockQuantity ?? (wh.quantity - (item.stockingDemand || 0)),
+        displaySellingFreeStock: wh.freeStockSellingQuantity ?? (wh.sellingQuantity - (item.sellingDemand || 0)),
         isSplit: false
       });
     } else {
@@ -174,6 +193,10 @@ export default function StockLevelsTab({
         warehouseName: "Main Warehouse",
         displayStockingQty: 0,
         displaySellingQty: 0,
+        displayStockingDemand: item.stockingDemand || 0,
+        displaySellingDemand: item.sellingDemand || 0,
+        displayStockingFreeStock: 0 - (item.stockingDemand || 0),
+        displaySellingFreeStock: 0 - (item.sellingDemand || 0),
         isSplit: false
       });
     }
@@ -215,8 +238,9 @@ export default function StockLevelsTab({
                 <th className="py-3.5 px-4">Product Name</th>
                 <th className="py-3.5 px-4 text-center">Warehouse</th>
                 <th className="py-3.5 px-4 text-center">Unit Ratio</th>
-                <th className="py-3.5 px-4 text-right">Stocking Qty</th>
-                <th className="py-3.5 px-4 text-right">Available Selling Qty</th>
+                <th className="py-3.5 px-4 text-right">Stock</th>
+                <th className="py-3.5 px-4 text-right">Demand</th>
+                <th className="py-3.5 px-4 text-right">Free Stock</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200/60">
@@ -226,9 +250,18 @@ export default function StockLevelsTab({
                   onClick={() => handleSelectStockItem(row)}
                   className="hover:bg-slate-50/65 text-slate-700 cursor-pointer transition-colors"
                 >
-                  <td className="py-3 px-4 font-mono font-bold text-violet-650 flex items-center gap-1.5">
-                    <span>{row.sku}</span>
-                    <GoldenArrow type="item" id={row.sku} />
+                  <td className="py-3 px-4 font-mono font-bold text-violet-650">
+                    <div className="flex items-center gap-1.5">
+                      <span>{row.sku}</span>
+                      <GoldenArrow type="item" id={row.sku} />
+                    </div>
+                    <div className="mt-1">
+                      {row.allowBackorder ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-250">BO Allowed</span>
+                      ) : (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold bg-slate-50 text-slate-500 border border-slate-200">No BO</span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3 px-4 font-semibold text-slate-900">{getTranslatedName(row.name)}</td>
                   <td className="py-3 px-4 text-center">
@@ -243,11 +276,29 @@ export default function StockLevelsTab({
                       {row.conversionRatio} {row.sellUnitOfSale}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-right font-semibold text-slate-800">
-                    {row.displayStockingQty} <span className="text-[10px] text-slate-400 font-normal">{row.stockUnitOfSale}</span>
+                  <td className="py-3 px-4 text-right">
+                    <div className="font-semibold text-slate-800">
+                      {row.displayStockingQty} <span className="text-[10px] text-slate-400 font-normal">{row.stockUnitOfSale}</span>
+                    </div>
+                    <div className="text-[10px] text-slate-450 font-normal mt-0.5">
+                      {row.displaySellingQty} {row.sellUnitOfSale}
+                    </div>
                   </td>
-                  <td className="py-3 px-4 text-right font-bold text-cyan-700">
-                    {row.displaySellingQty} <span className="text-[10px] text-slate-400 font-normal">{row.sellUnitOfSale}</span>
+                  <td className="py-3 px-4 text-right">
+                    <div className="font-semibold text-slate-700">
+                      {row.displayStockingDemand} <span className="text-[10px] text-slate-400 font-normal">{row.stockUnitOfSale}</span>
+                    </div>
+                    <div className="text-[10px] text-slate-450 font-normal mt-0.5">
+                      {row.displaySellingDemand} {row.sellUnitOfSale}
+                    </div>
+                  </td>
+                  <td className="py-3 px-4 text-right">
+                    <div className={`font-bold ${row.displayStockingFreeStock < 0 ? "text-rose-600" : "text-emerald-650"}`}>
+                      {row.displayStockingFreeStock} <span className="text-[10px] text-slate-450 font-normal">{row.stockUnitOfSale}</span>
+                    </div>
+                    <div className="text-[10px] text-slate-450 font-normal mt-0.5">
+                      {row.displaySellingFreeStock} {row.sellUnitOfSale}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -383,7 +434,7 @@ export default function StockLevelsTab({
                 </div>
               </div>
  
-              <div className="flex items-center gap-3 pt-2">
+              <div className="flex flex-col gap-2 pt-2">
                 <label className="flex items-center gap-2 cursor-pointer text-slate-700 text-xs select-none">
                   <input
                     type="checkbox"
@@ -393,20 +444,69 @@ export default function StockLevelsTab({
                   />
                   <span className="font-bold uppercase tracking-wider text-[10px] text-slate-550">Enable for B2B E-Commerce Website</span>
                 </label>
+                <label className="flex items-center gap-2 cursor-pointer text-slate-700 text-xs select-none">
+                  <input
+                    type="checkbox"
+                    checked={editAllowBackorder}
+                    onChange={(e) => setEditAllowBackorder(e.target.checked)}
+                    className="w-4 h-4 rounded text-violet-650 focus:ring-violet-500 border-slate-350"
+                  />
+                  <span className="font-bold uppercase tracking-wider text-[10px] text-slate-550">Allow Backorders (Negative Free Stock)</span>
+                </label>
               </div>
  
-              {/* Warehouse Inventory Allocations (Read-only list inside drawer) */}
-              <div className="pt-4 border-t border-slate-100">
-                <h5 className="text-[10px] font-bold uppercase text-slate-500 tracking-wider mb-2">Location Allocations</h5>
-                <div className="space-y-1.5">
-                  {selectedItem.warehouseQuantities && selectedItem.warehouseQuantities.map((wh) => (
-                    <div key={wh.warehouseId} className="flex justify-between items-center text-xs py-1.5 px-3 bg-slate-50 rounded-lg border border-slate-150">
-                      <span className="font-semibold text-slate-800">{wh.warehouseName} ({wh.warehouseCode})</span>
-                      <div className="text-right">
-                        <span className="font-bold text-slate-900">{wh.quantity}</span> <span className="text-[10px] text-slate-400">{selectedItem.stockUnitOfSale}</span>
+              {/* Warehouse Inventory Allocations and POs (Drawer list sections) */}
+              <div className="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h5 className="text-[10px] font-bold uppercase text-slate-500 tracking-wider mb-2">Location Allocations</h5>
+                  <div className="space-y-1.5">
+                    {selectedItem.warehouseQuantities && selectedItem.warehouseQuantities.map((wh) => (
+                      <div key={wh.warehouseId} className="flex justify-between items-center text-xs py-1.5 px-3 bg-slate-50 rounded-lg border border-slate-150">
+                        <span className="font-semibold text-slate-800">{wh.warehouseName} ({wh.warehouseCode})</span>
+                        <div className="text-right">
+                          <span className="font-bold text-slate-900">{wh.quantity}</span> <span className="text-[10px] text-slate-400">{selectedItem.stockUnitOfSale}</span>
+                        </div>
                       </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h5 className="text-[10px] font-bold uppercase text-slate-500 tracking-wider mb-2">Pending Purchase Orders</h5>
+                  {selectedItem.purchaseOrders && selectedItem.purchaseOrders.length > 0 ? (
+                    <div className="border border-slate-150 rounded-xl overflow-hidden bg-white max-h-[160px] overflow-y-auto">
+                      <table className="w-full text-left text-[10px] border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-150 text-slate-500 font-bold uppercase text-[8px]">
+                            <th className="py-1.5 px-2">PO Ref</th>
+                            <th className="py-1.5 px-2">Supplier</th>
+                            <th className="py-1.5 px-2 text-center">Expected</th>
+                            <th className="py-1.5 px-2 text-right">Qty (Ord/Rec)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-slate-700">
+                          {selectedItem.purchaseOrders.map((po: any, index: number) => (
+                            <tr key={index} className="hover:bg-slate-50/50">
+                              <td className="py-1.5 px-2 font-mono font-bold text-emerald-650">{po.orderNumber}</td>
+                              <td className="py-1.5 px-2 font-medium truncate max-w-[80px]" title={po.supplierName}>{po.supplierName}</td>
+                              <td className="py-1.5 px-2 text-center text-slate-550">
+                                {po.expectedDeliveryDate 
+                                  ? new Date(po.expectedDeliveryDate).toLocaleDateString(activeLanguage, { dateStyle: "short" }) 
+                                  : "N/A"}
+                              </td>
+                              <td className="py-1.5 px-2 text-right font-semibold">
+                                {po.quantity} / {po.receivedQuantity || 0}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  ))}
+                  ) : (
+                    <div className="text-slate-450 text-[10px] italic bg-slate-50 p-2.5 rounded-lg border border-slate-150 text-center">
+                      No pending purchase orders.
+                    </div>
+                  )}
                 </div>
               </div>
  

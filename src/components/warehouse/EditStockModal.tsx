@@ -1,24 +1,26 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Calculator } from "lucide-react";
 
-interface DefineStockModalProps {
+interface EditStockModalProps {
   isOpen: boolean;
   onClose: () => void;
   token: string;
+  item: any;
   isPimActive: boolean;
   onSuccess: () => void;
 }
 
-export default function DefineStockModal({
+export default function EditStockModal({
   isOpen,
   onClose,
   token,
+  item,
   isPimActive,
   onSuccess,
-}: DefineStockModalProps) {
+}: EditStockModalProps) {
   const [sku, setSku] = useState("");
   const [nameEn, setNameEn] = useState("");
   const [nameFr, setNameFr] = useState("");
@@ -27,13 +29,42 @@ export default function DefineStockModal({
   const [sellUnit, setSellUnit] = useState("Each");
   const [ratio, setRatio] = useState(100.0);
   const [price, setPrice] = useState(150.0);
-  const [allowBackorder, setAllowBackorder] = useState(false);
+  const [enableForWebsite, setEnableForWebsite] = useState(true);
   const [submittingStock, setSubmittingStock] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (isOpen && item) {
+      setSku(item.sku || "");
+      setStockUnit(item.stockUnitOfSale || "Pallet");
+      setSellUnit(item.sellUnitOfSale || "Each");
+      setRatio(item.conversionRatio || 100.0);
+      setPrice(item.basePrice || 150.0);
+      setEnableForWebsite(item.enableForWebsite ?? true);
 
-  const handleAddStockItem = async (e: React.FormEvent) => {
+      // Name translations
+      try {
+        const names = typeof item.name === "string" ? JSON.parse(item.name) : item.name;
+        setNameEn(names?.["en-GB"] || "");
+        setNameFr(names?.["fr-FR"] || "");
+      } catch {
+        setNameEn(item.name || "");
+        setNameFr("");
+      }
+
+      // Description translations
+      try {
+        const descs = typeof item.description === "string" ? JSON.parse(item.description) : item.description;
+        setDescEn(descs?.["en-GB"] || "");
+      } catch {
+        setDescEn(item.description || "");
+      }
+    }
+  }, [isOpen, item]);
+
+  if (!isOpen || !item) return null;
+
+  const handleEditStockItem = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittingStock(true);
     setError(null);
@@ -46,27 +77,21 @@ export default function DefineStockModal({
         sellUnitOfSale: sellUnit,
         conversionRatio: Number(ratio),
         basePrice: Number(price),
-        enableForWebsite: true,
-        allowBackorder,
+        enableForWebsite: enableForWebsite,
         richDescriptionJson: isPimActive ? JSON.stringify({ "en-GB": `<p>${descEn}</p>` }) : "{}",
-        mediaUrlsJson: isPimActive ? "[\"https://images.unsplash.com/photo-1590069261209-f8e9b8642343\"]" : "[]",
-        specificationsJson: isPimActive ? JSON.stringify({ "weight": "2kg" }) : "{}"
+        mediaUrlsJson: isPimActive ? (item.mediaUrls || "[]") : "[]",
+        specificationsJson: isPimActive ? (item.specifications || "{}") : "{}"
       };
 
-      await axios.post("http://localhost:5000/api/warehouse/stock", payload, {
+      // The backend update stock endpoint is POST /api/warehouse/stock/{id}
+      await axios.post(`http://localhost:5000/api/warehouse/stock/${item.id}`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setSku("");
-      setNameEn("");
-      setNameFr("");
-      setDescEn("");
-      setRatio(100);
-      setPrice(150);
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to create stock item.");
+      setError(err.response?.data?.message || "Failed to update stock item.");
     } finally {
       setSubmittingStock(false);
     }
@@ -74,8 +99,8 @@ export default function DefineStockModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4">
-      <div className="w-full max-w-lg p-6 bg-white border border-slate-200 rounded-2xl shadow-2xl space-y-5">
-        <h3 className="text-base font-bold text-slate-900">Define New SKU Item</h3>
+      <div className="w-full max-w-lg p-6 bg-white border border-slate-200 rounded-2xl shadow-2xl space-y-5 text-slate-800">
+        <h3 className="text-base font-bold text-slate-900">Edit SKU Item: {sku}</h3>
         
         {error && (
           <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-xs">
@@ -83,7 +108,7 @@ export default function DefineStockModal({
           </div>
         )}
 
-        <form onSubmit={handleAddStockItem} className="space-y-4">
+        <form onSubmit={handleEditStockItem} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-[10px] font-bold uppercase text-slate-500">SKU Code</label>
@@ -93,13 +118,14 @@ export default function DefineStockModal({
                 value={sku}
                 onChange={(e) => setSku(e.target.value)}
                 placeholder="BRK-BLUE-02"
-                className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
+                className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800 font-mono"
               />
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase text-slate-500">Pallet Base Price (£)</label>
+              <label className="text-[10px] font-bold uppercase text-slate-500">Base Price ({stockUnit} Unit)</label>
               <input
                 type="number"
+                step="0.0001"
                 required
                 value={price}
                 onChange={(e) => setPrice(Number(e.target.value))}
@@ -128,7 +154,7 @@ export default function DefineStockModal({
                 value={nameFr}
                 onChange={(e) => setNameFr(e.target.value)}
                 placeholder="Palette de briques bleues"
-                className="w-full mt-1 text-xs px-3 py-2 bg-slate-55 border border-emerald-200 focus:outline-none focus:bg-white focus:border-emerald-500 text-slate-800"
+                className="w-full mt-1 text-xs px-3 py-2 bg-slate-55 border border-emerald-205 focus:outline-none focus:bg-white focus:border-emerald-500 text-slate-800"
               />
             </div>
           )}
@@ -149,6 +175,7 @@ export default function DefineStockModal({
               <label className="text-[10px] font-bold uppercase text-slate-500">Stock Unit</label>
               <input
                 type="text"
+                required
                 value={stockUnit}
                 onChange={(e) => setStockUnit(e.target.value)}
                 className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
@@ -158,6 +185,7 @@ export default function DefineStockModal({
               <label className="text-[10px] font-bold uppercase text-slate-500">Selling Unit</label>
               <input
                 type="text"
+                required
                 value={sellUnit}
                 onChange={(e) => setSellUnit(e.target.value)}
                 className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
@@ -169,31 +197,19 @@ export default function DefineStockModal({
               </label>
               <input
                 type="number"
+                required
                 value={ratio}
                 onChange={(e) => setRatio(Number(e.target.value))}
                 className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
               />
             </div>
           </div>
- 
-          <div className="flex items-center gap-2 pt-1 select-none">
-            <input
-              type="checkbox"
-              id="define-allow-backorder"
-              checked={allowBackorder}
-              onChange={(e) => setAllowBackorder(e.target.checked)}
-              className="w-4 h-4 rounded text-violet-650 focus:ring-violet-500 border-slate-350"
-            />
-            <label htmlFor="define-allow-backorder" className="font-bold uppercase tracking-wider text-[10px] text-slate-550 cursor-pointer">
-              Allow Backorders (Negative Free Stock)
-            </label>
-          </div>
 
           <div className="flex gap-3 justify-end pt-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-slate-200 text-slate-500 hover:text-slate-750 text-xs font-semibold rounded-lg font-medium cursor-pointer"
+              className="px-4 py-2 border border-slate-200 text-slate-500 hover:text-slate-750 text-xs font-semibold rounded-lg cursor-pointer"
             >
               Cancel
             </button>
@@ -202,7 +218,7 @@ export default function DefineStockModal({
               disabled={submittingStock}
               className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg disabled:opacity-50 cursor-pointer"
             >
-              Create SKU
+              Save Changes
             </button>
           </div>
         </form>

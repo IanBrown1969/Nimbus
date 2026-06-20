@@ -43,12 +43,76 @@ export default function PurchaseOrdersPage() {
   const [currency, setCurrency] = useState("GBP");
   const [exchangeRate, setExchangeRate] = useState(1.0);
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState("");
   const [lines, setLines] = useState<POLine[]>([
     { stockItemId: "", quantity: 10, unitPrice: 1.0 }
   ]);
 
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Drawer states
+  const [selectedPO, setSelectedPO] = useState<any | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Sorting states
+  const [sortField, setSortField] = useState<string>("orderNumber");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // Column filtering states
+  const [filterPO, setFilterPO] = useState("");
+  const [filterOrderDate, setFilterOrderDate] = useState("");
+  const [filterExpectedDate, setFilterExpectedDate] = useState("");
+  const [filterSupplier, setFilterSupplier] = useState("");
+  const [filterLines, setFilterLines] = useState("");
+  const [filterTotal, setFilterTotal] = useState("");
+  const [filterStatus, setFilterStatus] = useState("All");
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortOrder(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
+
+  const renderSortHeader = (label: string, field: string, align: "left" | "center" | "right" = "left") => {
+    const isSorted = sortField === field;
+    return (
+      <div 
+        onClick={() => handleSort(field)}
+        className={`flex items-center gap-1 cursor-pointer select-none hover:text-slate-800 transition-colors ${
+          align === "center" ? "justify-center" : align === "right" ? "justify-end" : "justify-start"
+        }`}
+      >
+        <span>{label}</span>
+        <span className="text-[9px] text-slate-400 font-bold font-mono">
+          {isSorted ? (sortOrder === "asc" ? "▲" : "▼") : "⇅"}
+        </span>
+      </div>
+    );
+  };
+
+  const clearAllFilters = () => {
+    setFilterPO("");
+    setFilterOrderDate("");
+    setFilterExpectedDate("");
+    setFilterSupplier("");
+    setFilterLines("");
+    setFilterTotal("");
+    setFilterStatus("All");
+  };
+
+  const hasFilters = !!(
+    filterPO ||
+    filterOrderDate ||
+    filterExpectedDate ||
+    filterSupplier ||
+    filterLines ||
+    filterTotal ||
+    filterStatus !== "All"
+  );
 
   const isSupActive = plugins.find(p => p.code === "SUP")?.isSubscribed;
 
@@ -145,6 +209,7 @@ export default function PurchaseOrdersPage() {
         orderNumber,
         supplierId: Number(supplierId),
         orderDate: new Date(orderDate).toISOString(),
+        expectedDeliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate).toISOString() : null,
         currencyCode: currency,
         exchangeRateToBase: Number(exchangeRate),
         lines: lines.map(l => ({
@@ -202,13 +267,119 @@ export default function PurchaseOrdersPage() {
     }
   };
 
+  const getLinesText = (order: any) => {
+    return order.lines.map((line: any) => {
+      const name = getTranslatedName(line.stockItem?.nameJson) || "";
+      return `• ${name} (${line.quantity} units @ ${formatMoney(line.unitPrice, order.currencyCode)})`;
+    }).join(" ");
+  };
+
+  const getOrderStatusText = (status: number) => {
+    switch (status) {
+      case 0: return "Draft";
+      case 1: return "Approved";
+      case 2: return "Ordered";
+      case 3: return "Received";
+      case 4: return "Cancelled";
+      default: return "Unknown";
+    }
+  };
+
+  const getOrderTotal = (order: any) => {
+    return order.lines.reduce((sum: number, line: any) => sum + (line.quantity * line.unitPrice), 0);
+  };
+
   const filteredOrders = orders.filter(o => {
     const q = searchQuery.toLowerCase();
-    return (
+    const matchesSearch = q ? (
       o.orderNumber.toLowerCase().includes(q) ||
-      o.supplier?.name.toLowerCase().includes(q) ||
+      (o.supplier?.name || "").toLowerCase().includes(q) ||
       o.currencyCode.toLowerCase().includes(q)
-    );
+    ) : true;
+
+    if (!matchesSearch) return false;
+
+    if (filterPO && !o.orderNumber.toLowerCase().includes(filterPO.toLowerCase())) {
+      return false;
+    }
+
+    if (filterOrderDate) {
+      const dateStr = new Date(o.orderDate).toLocaleDateString(activeLanguage, { dateStyle: "medium" }).toLowerCase();
+      if (!dateStr.includes(filterOrderDate.toLowerCase())) {
+        return false;
+      }
+    }
+
+    if (filterExpectedDate) {
+      if (!o.expectedDeliveryDate) return false;
+      const dateStr = new Date(o.expectedDeliveryDate).toLocaleDateString(activeLanguage, { dateStyle: "medium" }).toLowerCase();
+      if (!dateStr.includes(filterExpectedDate.toLowerCase())) {
+        return false;
+      }
+    }
+
+    if (filterSupplier && !(o.supplier?.name || "").toLowerCase().includes(filterSupplier.toLowerCase())) {
+      return false;
+    }
+
+    if (filterLines && !getLinesText(o).toLowerCase().includes(filterLines.toLowerCase())) {
+      return false;
+    }
+
+    if (filterTotal) {
+      const totalAmount = getOrderTotal(o);
+      const totalStr = formatMoney(totalAmount, o.currencyCode).toLowerCase();
+      if (!totalStr.includes(filterTotal.toLowerCase()) && !totalAmount.toString().includes(filterTotal)) {
+        return false;
+      }
+    }
+
+    if (filterStatus !== "All") {
+      const statusText = getOrderStatusText(o.status);
+      if (statusText.toLowerCase() !== filterStatus.toLowerCase()) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    let comparison = 0;
+
+    switch (sortField) {
+      case "orderNumber":
+        comparison = a.orderNumber.localeCompare(b.orderNumber);
+        break;
+      case "orderDate":
+        comparison = new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime();
+        break;
+      case "expectedDeliveryDate":
+        const dateA = a.expectedDeliveryDate ? new Date(a.expectedDeliveryDate).getTime() : 0;
+        const dateB = b.expectedDeliveryDate ? new Date(b.expectedDeliveryDate).getTime() : 0;
+        comparison = dateA - dateB;
+        break;
+      case "supplier":
+        const nameA = a.supplier?.name || "";
+        const nameB = b.supplier?.name || "";
+        comparison = nameA.localeCompare(nameB);
+        break;
+      case "lines":
+        const textA = getLinesText(a);
+        const textB = getLinesText(b);
+        comparison = textA.localeCompare(textB);
+        break;
+      case "total":
+        comparison = getOrderTotal(a) - getOrderTotal(b);
+        break;
+      case "status":
+        comparison = getOrderStatusText(a.status).localeCompare(getOrderStatusText(b.status));
+        break;
+      default:
+        break;
+    }
+
+    return sortOrder === "asc" ? comparison : -comparison;
   });
 
   if (!isSupActive) {
@@ -284,36 +455,132 @@ export default function PurchaseOrdersPage() {
             <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
             <span>Loading purchase orders catalogue...</span>
           </div>
-        ) : filteredOrders.length === 0 ? (
+        ) : sortedOrders.length === 0 ? (
           <div className="text-slate-450 text-xs text-center py-12">
-            {searchQuery ? "No purchase orders match your search." : "No purchase orders have been drafted yet."}
+            {searchQuery || hasFilters ? "No purchase orders match your filters." : "No purchase orders have been drafted yet."}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/60 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-[#e1e5eb]">
-                  <th className="py-3 px-4">PO Ref / Date</th>
-                  <th className="py-3 px-4">Supplier Name</th>
-                  <th className="py-3 px-4">Summary Lines</th>
-                  <th className="py-3 px-4 text-right">Total (PO Currency)</th>
-                  <th className="py-3 px-4 text-center">Status</th>
+                <tr className="bg-slate-50/60 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-[#e1e5eb] select-none">
+                  <th className="py-3 px-4">{renderSortHeader("PO Ref", "orderNumber")}</th>
+                  <th className="py-3 px-4">{renderSortHeader("Order Date", "orderDate")}</th>
+                  <th className="py-3 px-4">{renderSortHeader("Expected Delivery", "expectedDeliveryDate")}</th>
+                  <th className="py-3 px-4">{renderSortHeader("Supplier Name", "supplier")}</th>
+                  <th className="py-3 px-4">{renderSortHeader("Summary Lines", "lines")}</th>
+                  <th className="py-3 px-4 text-right">{renderSortHeader("Total (PO Currency)", "total", "right")}</th>
+                  <th className="py-3 px-4 text-center">{renderSortHeader("Status", "status", "center")}</th>
                   <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+                {/* Filter row */}
+                <tr className="bg-slate-50/20 border-b border-[#e1e5eb]">
+                  <td className="p-2">
+                    <input
+                      type="text"
+                      placeholder="Filter PO..."
+                      value={filterPO}
+                      onChange={(e) => setFilterPO(e.target.value)}
+                      className="w-full text-[10px] px-2 py-1 bg-white border border-slate-200 rounded focus:outline-none focus:border-emerald-600 font-sans"
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="text"
+                      placeholder="Filter Date..."
+                      value={filterOrderDate}
+                      onChange={(e) => setFilterOrderDate(e.target.value)}
+                      className="w-full text-[10px] px-2 py-1 bg-white border border-slate-200 rounded focus:outline-none focus:border-emerald-600 font-sans"
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="text"
+                      placeholder="Filter Expected..."
+                      value={filterExpectedDate}
+                      onChange={(e) => setFilterExpectedDate(e.target.value)}
+                      className="w-full text-[10px] px-2 py-1 bg-white border border-slate-200 rounded focus:outline-none focus:border-emerald-600 font-sans"
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="text"
+                      placeholder="Filter Supplier..."
+                      value={filterSupplier}
+                      onChange={(e) => setFilterSupplier(e.target.value)}
+                      className="w-full text-[10px] px-2 py-1 bg-white border border-slate-200 rounded focus:outline-none focus:border-emerald-600 font-sans"
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="text"
+                      placeholder="Filter Items..."
+                      value={filterLines}
+                      onChange={(e) => setFilterLines(e.target.value)}
+                      className="w-full text-[10px] px-2 py-1 bg-white border border-slate-200 rounded focus:outline-none focus:border-emerald-600 font-sans"
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="text"
+                      placeholder="Filter Total..."
+                      value={filterTotal}
+                      onChange={(e) => setFilterTotal(e.target.value)}
+                      className="w-full text-[10px] px-2 py-1 bg-white border border-slate-200 rounded text-right focus:outline-none focus:border-emerald-600 font-sans"
+                    />
+                  </td>
+                  <td className="p-2 text-center">
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      className="w-full text-[10px] px-1 py-1 bg-white border border-slate-200 rounded focus:outline-none focus:border-emerald-600 font-sans"
+                    >
+                      <option value="All">All Statuses</option>
+                      <option value="Draft">Draft</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Ordered">Ordered</option>
+                      <option value="Received">Received</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                  </td>
+                  <td className="p-2 text-right">
+                    {hasFilters && (
+                      <button
+                        onClick={clearAllFilters}
+                        className="py-1 px-2 text-[9px] text-rose-600 hover:text-rose-700 font-bold border border-rose-200 bg-rose-50 hover:bg-rose-100/50 rounded transition-colors cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </td>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                {filteredOrders.map((order) => {
+                {sortedOrders.map((order) => {
                   const badge = getStatusBadge(order.status);
-                  const totalAmount = order.lines.reduce((sum: number, line: any) => sum + (line.quantity * line.unitPrice), 0);
+                  const totalAmount = getOrderTotal(order);
                   const isCreator = String(order.createdByUserId) === String(user?.id);
 
                   return (
-                    <tr key={order.id} className="hover:bg-slate-50/40 transition-colors">
+                    <tr 
+                      key={order.id} 
+                      onClick={() => { setSelectedPO(order); setDrawerOpen(true); }}
+                      className="hover:bg-slate-50/40 transition-colors cursor-pointer"
+                    >
+                      <td className="py-4 px-4 font-mono text-emerald-600 font-bold text-sm leading-none">
+                        {order.orderNumber}
+                      </td>
+                      <td className="py-4 px-4 font-medium text-slate-600">
+                        {new Date(order.orderDate).toLocaleDateString(activeLanguage, { dateStyle: "medium" })}
+                      </td>
                       <td className="py-4 px-4 font-medium">
-                        <div className="font-mono text-emerald-600 font-bold text-sm leading-none">{order.orderNumber}</div>
-                        <span className="text-[10px] text-slate-450 mt-1 block">
-                          {new Date(order.orderDate).toLocaleDateString(activeLanguage, { dateStyle: "medium" })}
-                        </span>
+                        {order.expectedDeliveryDate ? (
+                          <span className="text-amber-600 font-bold">
+                            {new Date(order.expectedDeliveryDate).toLocaleDateString(activeLanguage, { dateStyle: "medium" })}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 italic">Not specified</span>
+                        )}
                       </td>
                       <td className="py-4 px-4 font-semibold text-slate-800">
                         {order.supplier?.name || "N/A"}
@@ -404,15 +671,26 @@ export default function PurchaseOrdersPage() {
                   </select>
                 </div>
 
-                <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-500">Order Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={orderDate}
-                    onChange={(e) => setOrderDate(e.target.value)}
-                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-emerald-600"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase text-slate-500">Order Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={orderDate}
+                      onChange={(e) => setOrderDate(e.target.value)}
+                      className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase text-slate-500">Expected Delivery</label>
+                    <input
+                      type="date"
+                      value={expectedDeliveryDate}
+                      onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+                      className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -555,6 +833,160 @@ export default function PurchaseOrdersPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* PO Details Drawer */}
+      {drawerOpen && selectedPO && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="absolute inset-0" onClick={() => { setDrawerOpen(false); setSelectedPO(null); }}></div>
+          <div className="relative w-full max-w-xl bg-white border-l border-slate-200 shadow-2xl h-screen flex flex-col z-10 animate-in slide-in-from-right duration-250">
+            {/* Drawer Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Purchase Order Details</span>
+                <h3 className="text-base font-bold text-slate-800 font-mono mt-1">{selectedPO.orderNumber}</h3>
+              </div>
+              <button 
+                onClick={() => { setDrawerOpen(false); setSelectedPO(null); }}
+                className="w-7 h-7 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-450 hover:text-slate-650 flex items-center justify-center text-sm cursor-pointer transition-all active:scale-95"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Drawer Body (Scrollable) */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Quick Status Bar */}
+              <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                <div className="space-y-0.5">
+                  <span className="block text-[8px] font-bold uppercase text-slate-400">Order Status</span>
+                  <span className={`px-2.5 py-0.5 rounded border text-[9px] uppercase tracking-wide inline-block font-bold ${getStatusBadge(selectedPO.status).style}`}>
+                    {getStatusBadge(selectedPO.status).text}
+                  </span>
+                </div>
+                <div className="text-right space-y-0.5">
+                  <span className="block text-[8px] font-bold uppercase text-slate-400">Raised By</span>
+                  <span className="text-xs font-semibold text-slate-700">
+                    {selectedPO.createdByUser?.username || "System Admin"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Supplier Info */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Vendor Details</h4>
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-2">
+                  <div>
+                    <span className="block text-[8px] font-bold text-slate-400 uppercase">Supplier Name</span>
+                    <span className="text-xs font-bold text-slate-800">{selectedPO.supplier?.name || "N/A"}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="block text-[8px] font-bold text-slate-400 uppercase">Email</span>
+                      <span className="text-xs font-semibold text-slate-600 truncate block">{selectedPO.supplier?.email || "N/A"}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[8px] font-bold text-slate-400 uppercase">Default Currency</span>
+                      <span className="text-xs font-semibold text-slate-600 block">{selectedPO.supplier?.defaultCurrencyCode || "GBP"}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="block text-[8px] font-bold text-slate-400 uppercase">Billing Address</span>
+                    <span className="text-xs font-medium text-slate-600 block whitespace-pre-wrap">{selectedPO.supplier?.address || "N/A"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* PO Meta Info */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Order Meta</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl">
+                    <span className="block text-[8px] font-bold text-slate-400 uppercase">Order Date</span>
+                    <span className="text-[11px] font-bold text-slate-800">
+                      {new Date(selectedPO.orderDate).toLocaleDateString(activeLanguage, { dateStyle: "medium" })}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl">
+                    <span className="block text-[8px] font-bold text-slate-400 uppercase">Expected Delivery Date</span>
+                    <span className={`text-[11px] font-bold ${selectedPO.expectedDeliveryDate ? "text-amber-600" : "text-slate-600"}`}>
+                      {selectedPO.expectedDeliveryDate 
+                        ? new Date(selectedPO.expectedDeliveryDate).toLocaleDateString(activeLanguage, { dateStyle: "medium" }) 
+                        : "Not specified"}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl">
+                    <span className="block text-[8px] font-bold text-slate-400 uppercase">Trans Currency</span>
+                    <span className="text-[11px] font-bold text-slate-800 font-mono">{selectedPO.currencyCode}</span>
+                  </div>
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl">
+                    <span className="block text-[8px] font-bold text-slate-400 uppercase">Exchange Rate</span>
+                    <span className="text-[11px] font-bold text-slate-800 font-mono">{selectedPO.exchangeRateToBase}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lines Grid */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Order Items</h4>
+                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs bg-white">
+                  <table className="w-full text-left border-collapse text-[11px]">
+                    <thead>
+                      <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold uppercase">
+                        <th className="py-2.5 px-3">Item SKU</th>
+                        <th className="py-2.5 px-3 text-right">Qty Ord</th>
+                        <th className="py-2.5 px-3 text-right">Qty Rec</th>
+                        <th className="py-2.5 px-3 text-right">Price</th>
+                        <th className="py-2.5 px-3 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                      {selectedPO.lines.map((line: any, i: number) => {
+                        const isFullyReceived = line.receivedQuantity >= line.quantity;
+                        return (
+                          <tr key={i} className="hover:bg-slate-50/20">
+                            <td className="py-3 px-3">
+                              <span className="font-mono font-bold text-emerald-600 block">{line.stockItem?.sku}</span>
+                              <span className="text-[9px] text-slate-450 block truncate max-w-[150px] mt-0.5">
+                                {getTranslatedName(line.stockItem?.nameJson)}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right font-medium">{line.quantity}</td>
+                            <td className="py-3 px-3 text-right font-bold">
+                              <span className={isFullyReceived ? "text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]" : "text-purple-650 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 text-[10px]"}>
+                                {line.receivedQuantity || 0}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right font-medium">{formatMoney(line.unitPrice, selectedPO.currencyCode)}</td>
+                            <td className="py-3 px-3 text-right font-bold text-slate-800">
+                              {formatMoney(line.quantity * line.unitPrice, selectedPO.currencyCode)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Drawer Footer */}
+            <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center text-xs font-bold text-slate-800 shrink-0">
+              <div className="space-y-0.5">
+                <span className="block text-[8px] font-bold uppercase text-slate-400">Total Purchase Value</span>
+                <span className="text-base font-extrabold text-emerald-600">
+                  {formatMoney(selectedPO.lines.reduce((sum: number, l: any) => sum + (l.quantity * l.unitPrice), 0), selectedPO.currencyCode)}
+                </span>
+              </div>
+              <button
+                onClick={() => { setDrawerOpen(false); setSelectedPO(null); }}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold cursor-pointer active:scale-95 transition-all"
+              >
+                Close Details
+              </button>
+            </div>
           </div>
         </div>
       )}
