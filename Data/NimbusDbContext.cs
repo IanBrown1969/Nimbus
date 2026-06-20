@@ -67,6 +67,7 @@ public class NimbusDbContext : DbContext
     public DbSet<FixedAsset> FixedAssets { get; set; } = null!;
     public DbSet<AssetDepreciationLog> AssetDepreciationLogs { get; set; } = null!;
     public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+    public DbSet<RolePermission> RolePermissions { get; set; } = null!;
 
     // Core ERP Expansion DbSets
     public DbSet<LedgerAccount> LedgerAccounts { get; set; } = null!;
@@ -127,6 +128,7 @@ public class NimbusDbContext : DbContext
         builder.Entity<BankAccount>().HasIndex(b => new { b.TenantId, b.AccountNumber }).IsUnique();
         builder.Entity<FixedAsset>().HasIndex(f => new { f.TenantId, f.AssetCode }).IsUnique();
         builder.Entity<Quote>().HasIndex(q => new { q.TenantId, q.QuoteNumber }).IsUnique();
+        builder.Entity<RolePermission>().HasIndex(rp => new { rp.TenantId, rp.Role, rp.Area }).IsUnique();
 
         // Core ERP Expansion unique indexes
         builder.Entity<LedgerAccount>().HasIndex(l => new { l.TenantId, l.AccountCode }).IsUnique();
@@ -167,6 +169,7 @@ public class NimbusDbContext : DbContext
         builder.Entity<VatReturn>().HasQueryFilter(vr => vr.TenantId == _tenantProvider.TenantId);
         builder.Entity<FixedAsset>().HasQueryFilter(fa => fa.TenantId == _tenantProvider.TenantId);
         builder.Entity<AuditLog>().HasQueryFilter(al => al.TenantId == _tenantProvider.TenantId);
+        builder.Entity<RolePermission>().HasQueryFilter(rp => rp.TenantId == _tenantProvider.TenantId);
 
         // Core ERP Expansion Multi-Tenant filters
         builder.Entity<LedgerAccount>().HasQueryFilter(la => la.TenantId == _tenantProvider.TenantId);

@@ -169,6 +169,22 @@ public static class DbInitializer
                     ALTER TABLE [dbo].[PurchaseOrders] ADD [ExpectedDeliveryDate] DATETIME2 NULL;
                 END
             ");
+
+            context.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[RolePermissions]') AND type in (N'U'))
+                BEGIN
+                    CREATE TABLE [dbo].[RolePermissions] (
+                        [Id] BIGINT IDENTITY(1,1) NOT NULL,
+                        [TenantId] BIGINT NOT NULL,
+                        [Role] INT NOT NULL,
+                        [Area] NVARCHAR(100) NOT NULL,
+                        [IsAllowed] BIT NOT NULL,
+                        CONSTRAINT [PK_RolePermissions] PRIMARY KEY CLUSTERED ([Id] ASC),
+                        CONSTRAINT [FK_RolePermissions_Tenants_TenantId] FOREIGN KEY ([TenantId]) REFERENCES [dbo].[Tenants] ([Id]) ON DELETE CASCADE
+                    );
+                    CREATE UNIQUE INDEX [IX_RolePermissions_TenantId_Role_Area] ON [dbo].[RolePermissions] ([TenantId], [Role], [Area]);
+                END
+            ");
         }
 
         // 1. Seed local Tenant copy
@@ -310,6 +326,58 @@ public static class DbInitializer
                     new User { TenantId = tenant.Id, Username = "purchasing", Email = "purchasing@global.com", PasswordHash = passwordHash, Role = UserRole.Sales }
                 );
             }
+            context.SaveChanges();
+        }
+
+        // Seed default Role Permissions
+        if (!context.RolePermissions.Any())
+        {
+            var defaultPermissions = new List<RolePermission>();
+
+            // Accounts
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Accounts, Area = "financials", IsAllowed = true });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Accounts, Area = "sales", IsAllowed = true });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Accounts, Area = "purchasing", IsAllowed = true });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Accounts, Area = "banking", IsAllowed = true });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Accounts, Area = "inventory", IsAllowed = false });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Accounts, Area = "hr", IsAllowed = true });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Accounts, Area = "admin", IsAllowed = false });
+
+            // Warehouse
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Warehouse, Area = "financials", IsAllowed = false });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Warehouse, Area = "sales", IsAllowed = false });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Warehouse, Area = "purchasing", IsAllowed = true });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Warehouse, Area = "banking", IsAllowed = false });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Warehouse, Area = "inventory", IsAllowed = true });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Warehouse, Area = "hr", IsAllowed = false });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Warehouse, Area = "admin", IsAllowed = false });
+
+            // Sales
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Sales, Area = "financials", IsAllowed = false });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Sales, Area = "sales", IsAllowed = true });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Sales, Area = "purchasing", IsAllowed = false });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Sales, Area = "banking", IsAllowed = false });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Sales, Area = "inventory", IsAllowed = true });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Sales, Area = "hr", IsAllowed = false });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Sales, Area = "admin", IsAllowed = false });
+
+            // Integration
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Integration, Area = "financials", IsAllowed = true });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Integration, Area = "sales", IsAllowed = true });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Integration, Area = "purchasing", IsAllowed = true });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Integration, Area = "banking", IsAllowed = true });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Integration, Area = "inventory", IsAllowed = true });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Integration, Area = "hr", IsAllowed = true });
+            defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.Integration, Area = "admin", IsAllowed = true });
+
+            // CompanyAdmin & GlobalAdmin
+            foreach (var area in new[] { "financials", "sales", "purchasing", "banking", "inventory", "hr", "admin" })
+            {
+                defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.CompanyAdmin, Area = area, IsAllowed = true });
+                defaultPermissions.Add(new RolePermission { TenantId = tenant.Id, Role = UserRole.GlobalAdmin, Area = area, IsAllowed = true });
+            }
+
+            context.RolePermissions.AddRange(defaultPermissions);
             context.SaveChanges();
         }
 
