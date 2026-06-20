@@ -116,7 +116,7 @@ public class NimbusDbContext : DbContext
         builder.Entity<User>().HasIndex(u => new { u.TenantId, u.Username }).IsUnique();
         builder.Entity<StockItem>().HasIndex(s => new { s.TenantId, s.SKU }).IsUnique();
         builder.Entity<Customer>().HasIndex(c => new { c.TenantId, c.CustomerRef }).IsUnique();
-        builder.Entity<BinLocation>().HasIndex(b => new { b.TenantId, b.Code }).IsUnique();
+        builder.Entity<BinLocation>().HasIndex(b => new { b.TenantId, b.WarehouseId, b.Code }).IsUnique();
         builder.Entity<Supplier>().HasIndex(s => new { s.TenantId, s.Name }).IsUnique();
         builder.Entity<PurchaseOrder>().HasIndex(p => new { p.TenantId, p.OrderNumber }).IsUnique();
         builder.Entity<Delivery>().HasIndex(d => new { d.TenantId, d.DeliveryNumber }).IsUnique();
