@@ -30,6 +30,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const { token, user, activeLanguage, activeCurrency, plugins, logout, layout } = useApp();
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
   // Collapsible modules state
   const [openModules, setOpenModules] = useState<Record<string, boolean>>({
@@ -128,7 +129,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const modules = [
     {
       key: "financials",
-      name: "Financials",
+      name: "Finance",
       icon: BookOpen,
       items: [
         { name: "Ledger Dashboard", href: "/dashboard/finance" },
@@ -138,19 +139,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
     {
       key: "sales",
-      name: "Sales - A/R",
+      name: "Sales",
       icon: TrendingUp,
       items: [
         { name: "Customers", href: "/dashboard/finance/customers" },
         { name: "Sales Quotations", href: "/dashboard/finance/quotes" },
         { name: "Sales Orders", href: "/dashboard/finance/sales-orders" },
-        { name: "A/R Invoices", href: "/dashboard/finance" }, // maps back to GL invoices list
+        { name: "A/R Invoices", href: "/dashboard/finance" },
         { name: "A/R Credit Notes", href: "/dashboard/finance/credit-notes" }
       ]
     },
     {
       key: "purchasing",
-      name: "Purchasing - A/P",
+      name: "Purchasing",
       icon: ShoppingBag,
       locked: !isSupActive,
       badge: "SUP",
@@ -185,7 +186,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
     {
       key: "hr",
-      name: "Human Resources",
+      name: "HR",
       icon: Users,
       items: [
         { name: "Payroll runs", href: "/dashboard/finance/payroll" },
@@ -194,7 +195,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
     {
       key: "admin",
-      name: "Administration",
+      name: "Admin",
       icon: Sliders,
       items: [
         { name: "Fixed Assets", href: "/dashboard/finance/assets" },
@@ -212,28 +213,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
               
               {/* Left section: Logo & Nav Links */}
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 shrink-0">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-500 flex items-center justify-center font-bold text-white shadow-md shadow-violet-500/20">
                     N
                   </div>
-                  <div>
-                    <span className="font-bold tracking-wide text-slate-800 text-sm">Nimbus ERP</span>
-                    <span className="block text-[9px] text-slate-500 font-semibold uppercase tracking-widest leading-none">{user.tenantName}</span>
+                  <div className="hidden sm:block">
+                    <span className="font-bold tracking-wide text-slate-800 text-sm block leading-none">Nimbus ERP</span>
+                    <span className="block text-[8px] text-slate-500 font-bold uppercase tracking-widest leading-none mt-1 truncate max-w-[120px]">{user.tenantName}</span>
                   </div>
                 </div>
 
                 {/* Horizontal Navigation Menu */}
-                <nav className="hidden lg:flex items-center gap-1.5">
+                <nav className="hidden lg:flex items-center gap-1">
                   <Link
                     href="/dashboard"
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all whitespace-nowrap ${
                       pathname === "/dashboard"
                         ? "bg-violet-50 border-violet-100 text-violet-750 font-bold"
-                        : "border-transparent text-slate-650 hover:bg-slate-50 hover:text-slate-850"
+                        : "border-transparent text-slate-655 hover:bg-slate-50 hover:text-slate-850"
                     }`}
                   >
-                    <LayoutDashboard className="w-4 h-4 text-slate-500" />
+                    <LayoutDashboard className="w-4 h-4 text-slate-500 shrink-0" />
                     <span>Overview</span>
                   </Link>
 
@@ -246,11 +247,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         onMouseEnter={() => setActiveDropdown(mod.key)}
                         onMouseLeave={() => setActiveDropdown(null)}
                       >
-                        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-655 hover:bg-slate-50 hover:text-slate-850 transition-all cursor-pointer">
-                          <ModIcon className="w-4 h-4 text-slate-500" />
+                        <button className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-655 hover:bg-slate-50 hover:text-slate-850 transition-all whitespace-nowrap cursor-pointer">
+                          <ModIcon className="w-4 h-4 text-slate-500 shrink-0" />
                           <span>{mod.name}</span>
-                          {mod.locked && <Lock className="w-2.5 h-2.5 text-rose-500/70" />}
-                          <ChevronDown className="w-3 h-3 text-slate-400" />
+                          {mod.locked && <Lock className="w-2.5 h-2.5 text-rose-500/70 shrink-0" />}
+                          <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
                         </button>
 
                         {activeDropdown === mod.key && (
@@ -283,37 +284,62 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </nav>
               </div>
 
-              {/* Right section: Profile & Setup */}
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3 text-[10px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
-                  <span className="flex items-center gap-1">
-                    <Globe className="w-3 h-3 text-slate-400" /> {activeLanguage}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Coins className="w-3 h-3 text-slate-400" /> {activeCurrency}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <div className="p-1 bg-slate-100 rounded-lg text-slate-650">
-                    <UserIcon className="w-4 h-4" />
-                  </div>
-                  <div className="text-left hidden sm:block">
-                    <span className="block text-xs font-semibold text-slate-800 leading-none">{user.username}</span>
-                    <span className="block text-[8px] font-bold text-violet-650 uppercase tracking-wider">{user.role}</span>
-                  </div>
-                </div>
-
+              {/* Right section: Compact User Profile Dropdown */}
+              <div 
+                className="relative"
+                onMouseLeave={() => setProfileDropdownOpen(false)}
+              >
                 <button
-                  onClick={() => {
-                    logout();
-                    router.push("/login");
-                  }}
-                  className="py-1.5 px-3 hover:bg-rose-50 border border-transparent hover:border-rose-100 text-slate-600 hover:text-rose-600 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                  className="flex items-center gap-2 p-1.5 hover:bg-slate-50 border border-slate-200 rounded-xl transition-all cursor-pointer active:scale-95 shrink-0"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Sign Out</span>
+                  <div className="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center font-bold text-xs shrink-0">
+                    {user.username.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="text-left hidden md:block pr-1 max-w-[100px] truncate">
+                    <span className="block text-xs font-bold text-slate-800 leading-tight truncate">{user.username}</span>
+                    <span className="block text-[8px] font-bold text-slate-500 uppercase tracking-wider">{user.role}</span>
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 </button>
+
+                {profileDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-violet-100 text-violet-750 flex items-center justify-center font-bold text-base">
+                        {user.username.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <span className="block text-sm font-bold text-slate-900 leading-none">{user.username}</span>
+                        <span className="inline-block text-[9px] font-bold text-violet-650 bg-violet-50 border border-violet-200 rounded px-1.5 py-0.5 mt-1.5 uppercase tracking-wider">{user.role}</span>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-3 space-y-2.5">
+                      <div className="flex justify-between items-center text-xs text-slate-600">
+                        <span className="flex items-center gap-1.5 font-medium"><Globe className="w-4 h-4 text-slate-400" /> Language</span>
+                        <span className="font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded px-2 py-0.5">{activeLanguage}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs text-slate-600">
+                        <span className="flex items-center gap-1.5 font-medium"><Coins className="w-4 h-4 text-slate-400" /> Currency</span>
+                        <span className="font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded px-2 py-0.5">{activeCurrency}</span>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-3">
+                      <button
+                        onClick={() => {
+                          logout();
+                          router.push("/login");
+                        }}
+                        className="w-full py-2 px-3 hover:bg-rose-50 border border-transparent hover:border-rose-100 text-rose-600 hover:text-rose-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
             </div>

@@ -93,15 +93,15 @@ export default function AssetsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <span className="text-xs font-bold text-violet-400 uppercase tracking-widest font-heading">Finance</span>
-          <h2 className="text-3xl font-bold font-heading text-slate-100">Fixed Assets</h2>
-          <p className="text-slate-400 text-sm mt-1">Track company equipment capitalization and execute monthly depreciation runs.</p>
+          <span className="text-xs font-bold text-violet-650 uppercase tracking-widest font-heading">Finance</span>
+          <h2 className="text-3xl font-bold font-heading text-slate-900">Fixed Assets</h2>
+          <p className="text-slate-655 text-sm mt-1">Track company equipment capitalization and execute monthly depreciation runs.</p>
         </div>
         
         {(user?.role === "CompanyAdmin" || user?.role === "GlobalAdmin") && (
           <button
             onClick={() => setShowModal(true)}
-            className="py-2.5 px-4 rounded-xl font-semibold bg-violet-600 hover:bg-violet-500 text-white shadow-md flex items-center gap-2 text-xs transition-all active:scale-95"
+            className="py-2.5 px-4 rounded-xl font-semibold bg-violet-600 hover:bg-violet-500 text-white shadow-md flex items-center gap-2 text-xs transition-all active:scale-95 cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Capitalize New Asset
           </button>
@@ -109,15 +109,15 @@ export default function AssetsPage() {
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-455 text-xs">
           {error}
         </div>
       )}
 
       {/* Assets Grid */}
-      <div className="p-6 rounded-2xl border border-slate-900 bg-slate-900/30 backdrop-blur-sm space-y-4">
-        <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-          <Landmark className="w-5 h-5 text-violet-400" />
+      <div className="p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-4">
+        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+          <Landmark className="w-5 h-5 text-violet-650" />
           Capitalized Assets Registers
         </h3>
 
@@ -128,37 +128,37 @@ export default function AssetsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {assets.map((asset) => (
-              <div key={asset.id} className="p-5 bg-slate-950/80 border border-slate-800 rounded-2xl flex flex-col justify-between hover:border-slate-750 transition-colors">
+              <div key={asset.id} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col justify-between hover:border-slate-300 transition-colors">
                 <div className="space-y-3">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="font-mono font-bold text-violet-400">{asset.assetCode}</span>
+                    <span className="font-mono font-bold text-violet-700">{asset.assetCode}</span>
                     <span className="text-[10px] text-slate-500 flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5" /> Purchase: {new Date(asset.purchaseDate).toLocaleDateString()}
                     </span>
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-100">{asset.name}</h4>
-                    <p className="text-xs text-slate-400 mt-1">{asset.description}</p>
+                    <h4 className="text-sm font-bold text-slate-800">{asset.name}</h4>
+                    <p className="text-xs text-slate-600 mt-1">{asset.description}</p>
                   </div>
                   
                   {/* Financial details */}
-                  <div className="grid grid-cols-3 gap-2 pt-2 text-[10px] font-mono border-t border-slate-900">
+                  <div className="grid grid-cols-3 gap-2 pt-2 text-[10px] font-mono border-t border-slate-200">
                     <div>
                       <span className="block text-slate-500 font-sans uppercase font-bold text-[8px]">Cost Value</span>
-                      <span className="text-slate-300 font-bold">{formatMoney(asset.purchaseCost)}</span>
+                      <span className="text-slate-800 font-bold">{formatMoney(asset.purchaseCost)}</span>
                     </div>
                     <div>
                       <span className="block text-slate-500 font-sans uppercase font-bold text-[8px]">Book Value</span>
-                      <span className="text-cyan-400 font-bold">{formatMoney(asset.currentBookValue)}</span>
+                      <span className="text-cyan-750 font-bold">{formatMoney(asset.currentBookValue)}</span>
                     </div>
                     <div>
                       <span className="block text-slate-500 font-sans uppercase font-bold text-[8px]">Rate (Method)</span>
-                      <span className="text-slate-400">{asset.depreciationRate * 100}% ({asset.method === 0 ? "SL" : "RB"})</span>
+                      <span className="text-slate-600">{asset.depreciationRate * 100}% ({asset.method === 0 ? "SL" : "RB"})</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-slate-900/60 flex items-center justify-between">
+                <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between">
                   <div className="text-[10px] text-slate-500">
                     {asset.lastDepreciationDate 
                       ? `Last run: ${new Date(asset.lastDepreciationDate).toLocaleDateString()}` 
@@ -169,7 +169,7 @@ export default function AssetsPage() {
                     <button
                       onClick={() => handleDepreciate(asset.id)}
                       disabled={processingId === asset.id || asset.currentBookValue <= 0.0}
-                      className="py-1.5 px-3 rounded bg-violet-600 hover:bg-violet-500 text-white font-semibold text-[10px] flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                      className="py-1.5 px-3 rounded bg-violet-600 hover:bg-violet-500 text-white font-semibold text-[10px] flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
                     >
                       {processingId === asset.id ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -190,78 +190,78 @@ export default function AssetsPage() {
 
       {/* Asset Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4">
-          <div className="w-full max-w-sm p-6 bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl space-y-5">
-            <h3 className="text-base font-bold text-slate-100">Capitalize Fixed Asset</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm p-6 bg-white border border-slate-200 rounded-2xl shadow-2xl space-y-5">
+            <h3 className="text-base font-bold text-slate-900">Capitalize Fixed Asset</h3>
             <form onSubmit={handleCreateAsset} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">Asset Code</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Asset Code</label>
                   <input
                     type="text"
                     required
                     value={assetCode}
                     onChange={(e) => setAssetCode(e.target.value)}
                     placeholder="AST-2026-002"
-                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:border-violet-500 text-slate-200"
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">Purchase Cost (£)</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Purchase Cost (£)</label>
                   <input
                     type="number"
                     required
                     value={cost}
                     onChange={(e) => setCost(Number(e.target.value))}
-                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none"
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[10px] font-bold uppercase text-slate-400">Asset Name</label>
+                <label className="text-[10px] font-bold uppercase text-slate-500">Asset Name</label>
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Office Computers Update"
-                  className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:border-violet-500 text-slate-200"
+                  className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-bold uppercase text-slate-400">Description</label>
+                <label className="text-[10px] font-bold uppercase text-slate-500">Description</label>
                 <textarea
                   value={desc}
                   onChange={(e) => setDesc(e.target.value)}
                   placeholder="Acquisition details..."
-                  className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:border-violet-500 text-slate-200"
+                  className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
                   rows={2}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">Method</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Method</label>
                   <select
                     value={method}
                     onChange={(e) => setMethod(Number(e.target.value))}
-                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none"
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
                   >
                     <option value={0}>Straight Line (SL)</option>
                     <option value={1}>Reducing Balance (RB)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">Annual Rate (%)</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Annual Rate (%)</label>
                   <input
                     type="number"
                     step="0.01"
                     required
                     value={rate}
                     onChange={(e) => setRate(Number(e.target.value))}
-                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none"
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
                   />
                 </div>
               </div>
@@ -270,13 +270,13 @@ export default function AssetsPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-semibold rounded-lg"
+                  className="px-4 py-2 border border-slate-200 text-slate-500 hover:text-slate-800 text-xs font-semibold rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg"
+                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg cursor-pointer"
                 >
                   Post Capitalization
                 </button>
