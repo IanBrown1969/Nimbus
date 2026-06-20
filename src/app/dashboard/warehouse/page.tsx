@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useApp } from "@/context/AppContext";
+import { useSearchParams } from "next/navigation";
 import axios from "axios";
 import GoldenArrow from "@/components/common/GoldenArrow";
 import { 
@@ -21,10 +22,18 @@ import {
   CheckCircle
 } from "lucide-react";
 
-export default function WarehousePage() {
+function WarehousePageContent() {
   const { token, plugins, user, activeLanguage } = useApp();
+  const searchParams = useSearchParams();
 
   const [tab, setTab] = useState<"stock" | "bins" | "audits" | "picks" | "goodsin" | "shipments" | "adjustments">("stock");
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam && ["stock", "bins", "audits", "picks", "goodsin", "shipments", "adjustments"].includes(tabParam)) {
+      setTab(tabParam as any);
+    }
+  }, [searchParams]);
 
   // Dynamic lists
   const [stock, setStock] = useState<any[]>([]);
@@ -1386,5 +1395,13 @@ export default function WarehousePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function WarehousePage() {
+  return (
+    <Suspense fallback={<div className="text-slate-500 text-xs text-center py-10 animate-pulse">Loading warehouse panel...</div>}>
+      <WarehousePageContent />
+    </Suspense>
   );
 }

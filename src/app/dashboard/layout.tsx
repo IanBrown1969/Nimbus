@@ -83,6 +83,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           });
           const found = res.data.find((inv: any) => inv.id == id || inv.invoiceNumber === id);
           setDrilldownDetail(found || { invoiceNumber: id, customerName: "Invoice not found" });
+        } else if (type === "customer") {
+          res = await axios.get("http://localhost:5000/api/customers", {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const found = res.data.find((c: any) => c.id == id || c.name === id || c.customerRef === id);
+          setDrilldownDetail(found || { name: id, email: "N/A", phone: "N/A", customerRef: "N/A", addresses: [] });
         }
       } catch (err) {
         console.error("Drilldown fetch failed", err);
@@ -134,6 +140,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       name: "Sales - A/R",
       icon: TrendingUp,
       items: [
+        { name: "Customers", href: "/dashboard/finance/customers" },
         { name: "Sales Quotations", href: "/dashboard/finance/quotes" },
         { name: "Sales Orders", href: "/dashboard/finance/sales-orders" },
         { name: "A/R Invoices", href: "/dashboard/finance" }, // maps back to GL invoices list
@@ -166,13 +173,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       icon: Boxes,
       badge: isWmsActive ? "WMS" : (isPimActive ? "PIM" : null),
       items: [
-        { name: "Item Master Data", href: "/dashboard/warehouse" },
-        { name: "Bin Locations", href: "/dashboard/warehouse" },
-        { name: "Physical Audits", href: "/dashboard/warehouse" },
-        { name: "Picks & Dispatch", href: "/dashboard/warehouse" },
-        { name: "Goods In / Receipt", href: "/dashboard/warehouse" },
-        { name: "Outbound Shipments", href: "/dashboard/warehouse" },
-        { name: "Stock Adjustments", href: "/dashboard/warehouse" }
+        { name: "Item Master Data", href: "/dashboard/warehouse?tab=stock" },
+        { name: "Bin Locations", href: "/dashboard/warehouse?tab=bins" },
+        { name: "Physical Audits", href: "/dashboard/warehouse?tab=audits" },
+        { name: "Picks & Dispatch", href: "/dashboard/warehouse?tab=picks" },
+        { name: "Goods In / Receipt", href: "/dashboard/warehouse?tab=goodsin" },
+        { name: "Outbound Shipments", href: "/dashboard/warehouse?tab=shipments" },
+        { name: "Stock Adjustments", href: "/dashboard/warehouse?tab=adjustments" }
       ]
     },
     {
@@ -400,6 +407,68 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <span className="text-[10px] text-slate-500 font-bold uppercase block">Total Tax</span>
                         <span className="text-slate-700 font-mono">£{drilldownDetail.totalTax}</span>
                       </div>
+                    </div>
+                  </>
+                )}
+                {drilldownData.type === "customer" && (
+                  <>
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase block">Customer Ref</span>
+                      <strong className="text-slate-800 font-mono text-sm">{drilldownDetail.customerRef}</strong>
+                    </div>
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase block">Customer Name</span>
+                      <strong className="text-slate-800 text-sm">{drilldownDetail.name}</strong>
+                    </div>
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase block">Company</span>
+                      <span className="text-slate-700">{drilldownDetail.companyName}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                        <span className="text-[10px] text-slate-500 font-bold uppercase block">Email</span>
+                        <span className="text-slate-750 font-mono break-all">{drilldownDetail.email}</span>
+                      </div>
+                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                        <span className="text-[10px] text-slate-500 font-bold uppercase block">Phone</span>
+                        <span className="text-slate-750 font-mono">{drilldownDetail.phone}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Billing Addresses */}
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Billing Addresses</h4>
+                      {drilldownDetail.addresses && drilldownDetail.addresses.filter((a: any) => a.addressType === "Billing").length === 0 ? (
+                        <span className="text-slate-500 italic text-[11px] block">No billing addresses defined.</span>
+                      ) : (
+                        drilldownDetail.addresses?.filter((a: any) => a.addressType === "Billing").map((addr: any) => (
+                          <div key={addr.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-0.5">
+                            <span className="block font-bold text-slate-700">
+                              {addr.addressName} {addr.isDefault && <span className="text-[8px] font-bold bg-violet-100 text-violet-750 px-1 py-0.2 rounded uppercase">Default</span>}
+                            </span>
+                            <span className="block text-slate-650">{addr.addressLine1} {addr.addressLine2 && `, ${addr.addressLine2}`}</span>
+                            <span className="block text-slate-650">{addr.city}, {addr.postalCode}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Shipping Addresses */}
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Shipping Addresses</h4>
+                      {drilldownDetail.addresses && drilldownDetail.addresses.filter((a: any) => a.addressType === "Shipping").length === 0 ? (
+                        <span className="text-slate-500 italic text-[11px] block">No shipping addresses defined.</span>
+                      ) : (
+                        drilldownDetail.addresses?.filter((a: any) => a.addressType === "Shipping").map((addr: any) => (
+                          <div key={addr.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-0.5">
+                            <span className="block font-bold text-slate-700">
+                              {addr.addressName} {addr.isDefault && <span className="text-[8px] font-bold bg-violet-100 text-violet-750 px-1 py-0.2 rounded uppercase">Default</span>}
+                            </span>
+                            <span className="block text-slate-650">{addr.addressLine1} {addr.addressLine2 && `, ${addr.addressLine2}`}</span>
+                            <span className="block text-slate-650">{addr.city}, {addr.postalCode}</span>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </>
                 )}
