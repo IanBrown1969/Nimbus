@@ -4,7 +4,7 @@ import React from "react";
 import { ArrowRight } from "lucide-react";
 
 interface GoldenArrowProps {
-  type: "item" | "customer" | "invoice" | "supplier" | "bin";
+  type: "item" | "customer" | "invoice" | "supplier" | "bin" | "warehouse";
   id: string | number;
 }
 

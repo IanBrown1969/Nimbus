@@ -91,6 +91,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           });
           const found = res.data.find((c: any) => c.id == id || c.name === id || c.customerRef === id);
           setDrilldownDetail(found || { name: id, email: "N/A", phone: "N/A", customerRef: "N/A", addresses: [] });
+        } else if (type === "warehouse") {
+          res = await axios.get("http://localhost:5000/api/warehouse/warehouses", {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const found = res.data.find((w: any) => w.code === id || w.id == id);
+          setDrilldownDetail(found || { code: id, name: "Warehouse not found", address: "N/A" });
         }
       } catch (err) {
         console.error("Drilldown fetch failed", err);
@@ -181,7 +187,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { name: "Picks & Dispatch", href: "/dashboard/warehouse?tab=picks" },
         { name: "Goods In / Receipt", href: "/dashboard/warehouse?tab=goodsin" },
         { name: "Outbound Shipments", href: "/dashboard/warehouse?tab=shipments" },
-        { name: "Stock Adjustments", href: "/dashboard/warehouse?tab=adjustments" }
+        { name: "Stock Adjustments", href: "/dashboard/warehouse?tab=adjustments" },
+        { name: "Pricing Rules Setup", href: "/dashboard/settings/pricing" }
       ]
     },
     {
@@ -619,6 +626,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                           </div>
                         ))
                       )}
+                    </div>
+                  </>
+                )}
+                {drilldownData.type === "warehouse" && (
+                  <>
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase block">Warehouse Code</span>
+                      <strong className="text-slate-800 font-mono text-sm">{drilldownDetail.code}</strong>
+                    </div>
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase block">Warehouse Name</span>
+                      <strong className="text-slate-800 text-sm">{drilldownDetail.name}</strong>
+                    </div>
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase block">Physical Address</span>
+                      <span className="text-slate-755 block mt-1 leading-relaxed">{drilldownDetail.address || "No address defined"}</span>
                     </div>
                   </>
                 )}

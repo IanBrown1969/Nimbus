@@ -21,6 +21,7 @@ export default function QuotesPage() {
   const [exchangeRate, setExchangeRate] = useState(1.0);
   
   const [selectedStockId, setSelectedStockId] = useState("");
+  const [unitOfSale, setUnitOfSale] = useState<"stock" | "sell">("sell");
   const [lineQty, setLineQty] = useState(5);
   const [linePrice, setLinePrice] = useState(320.0);
   const [taxRate, setTaxRate] = useState(0.20);
@@ -28,6 +29,18 @@ export default function QuotesPage() {
   useEffect(() => {
     if (token) fetchQuotesData();
   }, [token]);
+
+  useEffect(() => {
+    const prod = stockList.find(item => String(item.id) === String(selectedStockId));
+    if (prod) {
+      if (unitOfSale === "stock") {
+        setLinePrice(prod.basePrice || 0);
+      } else {
+        const ratio = prod.conversionRatio || 1;
+        setLinePrice(Number(((prod.basePrice || 0) / ratio).toFixed(4)));
+      }
+    }
+  }, [selectedStockId, unitOfSale, stockList]);
 
   const fetchQuotesData = async () => {
     setLoading(true);
@@ -54,18 +67,24 @@ export default function QuotesPage() {
   const handleCreateQuote = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const prod = stockList.find(item => String(item.id) === String(selectedStockId));
+      const ratio = prod ? (prod.conversionRatio || 1) : 1;
+
+      const qtyToSend = unitOfSale === "stock" ? Number(lineQty) * ratio : Number(lineQty);
+      const priceToSend = unitOfSale === "stock" ? Number(linePrice) / ratio : Number(linePrice);
+
       const payload = {
         quoteNumber,
         customerName,
         quoteDate: new Date().toISOString(),
-        expiryDate: new Date(Date.now() + 30 * 24 * 60 * 65 * 1000).toISOString(),
+        expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         currencyCode: currency,
         exchangeRateToBase: Number(exchangeRate),
         lines: [
           {
             stockItemId: selectedStockId,
-            quantity: Number(lineQty),
-            unitPrice: Number(linePrice),
+            quantity: qtyToSend,
+            unitPrice: priceToSend,
             taxRate: Number(taxRate)
           }
         ]
@@ -211,6 +230,8 @@ export default function QuotesPage() {
                 </div>
               </div>
 
+
+
               {/* Estimate line */}
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                 <span className="block text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1">
@@ -229,41 +250,124 @@ export default function QuotesPage() {
                     ))}
                   </select>
                 </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="text-[9px] font-bold uppercase text-slate-500">Quantity</label>
-                    <input
-                      type="number"
-                      value={lineQty}
-                      onChange={(e) => setLineQty(Number(e.target.value))}
-                      className="w-full mt-1 text-xs px-2 py-1 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[9px] font-bold uppercase text-slate-500">Unit Price</label>
-                    <input
-                      type="number"
-                      value={linePrice}
-                      onChange={(e) => setLinePrice(Number(e.target.value))}
-                      className="w-full mt-1 text-xs px-2 py-1 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[9px] font-bold uppercase text-slate-500">VAT Rate</label>
-                    <select
-                      value={taxRate}
-                      onChange={(e) => setTaxRate(Number(e.target.value))}
-                      className="w-full mt-1 text-xs px-2 py-1 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none focus:border-violet-500"
-                    >
-                      <option value="0.20">20% Standard</option>
-                      <option value="0.05">5% Reduced</option>
-                      <option value="0.00">0% Zero-Rate</option>
-                    </select>
-                  </div>
-                </div>
+ 
+                {(() => {
+                  const selectedProduct = stockList.find(item => String(item.id) === String(selectedStockId));
+                  if (!selectedProduct) return null;
+ 
+                  const ratio = selectedProduct.conversionRatio || 1;
+                  const rawBase = selectedProduct.basePrice || 0;
+                  const activeBase = unitOfSale === "stock" ? rawBase : rawBase / ratio;
+ 
+                  const contractPrice = Number((activeBase * 0.8).toFixed(4));
+                  const groupPrice = Number((activeBase * 0.9).toFixed(4));
+                  const promoPrice = Number((activeBase * 0.85).toFixed(4));
+                  const basePriceVal = Number(activeBase.toFixed(4));
+ 
+                  return (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500">Unit of Sale</label>
+                          <select
+                            value={unitOfSale}
+                            onChange={(e) => setUnitOfSale(e.target.value as any)}
+                            className="w-full mt-1 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none focus:border-violet-500"
+                          >
+                            <option value="sell">Selling Unit ({selectedProduct.sellUnitOfSale || "Each"})</option>
+                            <option value="stock">Stocking Unit ({selectedProduct.stockUnitOfSale || "Pallet"})</option>
+                          </select>
+                        </div>
+                        <div className="flex items-end pb-2">
+                          <span className="text-[10px] text-slate-500 font-semibold italic">
+                            1 {selectedProduct.stockUnitOfSale} = {selectedProduct.conversionRatio} {selectedProduct.sellUnitOfSale}
+                          </span>
+                        </div>
+                      </div>
+ 
+                      {/* Complex Pricing Breakdown Widget */}
+                      <div className="border border-slate-200 bg-white p-3 rounded-lg space-y-2">
+                        <span className="block text-[9px] font-bold text-slate-500 uppercase tracking-wide">
+                          Pricing Tiers (Click to Apply)
+                        </span>
+                        <div className="grid grid-cols-2 gap-2 text-[10px]">
+                          <button
+                            type="button"
+                            onClick={() => setLinePrice(contractPrice)}
+                            className="p-1.5 text-left border border-slate-150 rounded hover:border-violet-300 hover:bg-violet-50/20 text-slate-700 font-semibold cursor-pointer active:scale-95 transition-all"
+                          >
+                            <span className="block text-[8px] uppercase text-violet-650 font-bold">Contract Pricing</span>
+                            <span>£{contractPrice.toFixed(2)}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setLinePrice(groupPrice)}
+                            className="p-1.5 text-left border border-slate-150 rounded hover:border-violet-300 hover:bg-violet-50/20 text-slate-700 font-semibold cursor-pointer active:scale-95 transition-all"
+                          >
+                            <span className="block text-[8px] uppercase text-violet-650 font-bold">Group Pricing</span>
+                            <span>£{groupPrice.toFixed(2)}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setLinePrice(promoPrice)}
+                            className="p-1.5 text-left border border-slate-150 rounded hover:border-violet-300 hover:bg-violet-50/20 text-slate-700 font-semibold cursor-pointer active:scale-95 transition-all"
+                          >
+                            <span className="block text-[8px] uppercase text-violet-650 font-bold">Promotional Pricing</span>
+                            <span>£{promoPrice.toFixed(2)}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setLinePrice(basePriceVal)}
+                            className="p-1.5 text-left border border-slate-150 rounded hover:border-violet-300 hover:bg-violet-50/20 text-slate-700 font-semibold cursor-pointer active:scale-95 transition-all"
+                          >
+                            <span className="block text-[8px] uppercase text-violet-650 font-bold">All Customer Pricing</span>
+                            <span>£{basePriceVal.toFixed(2)}</span>
+                          </button>
+                        </div>
+                      </div>
+ 
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500">
+                            Qty ({unitOfSale === "stock" ? selectedProduct.stockUnitOfSale : selectedProduct.sellUnitOfSale})
+                          </label>
+                          <input
+                            type="number"
+                            value={lineQty}
+                            onChange={(e) => setLineQty(Number(e.target.value))}
+                            className="w-full mt-1 text-xs px-2 py-1 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none focus:border-violet-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500">
+                            Price (per {unitOfSale === "stock" ? selectedProduct.stockUnitOfSale : selectedProduct.sellUnitOfSale})
+                          </label>
+                          <input
+                            type="number"
+                            step="0.0001"
+                            value={linePrice}
+                            onChange={(e) => setLinePrice(Number(e.target.value))}
+                            className="w-full mt-1 text-xs px-2 py-1 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none focus:border-violet-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500">VAT Rate</label>
+                          <select
+                            value={taxRate}
+                            onChange={(e) => setTaxRate(Number(e.target.value))}
+                            className="w-full mt-1 text-xs px-2 py-1.5 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none focus:border-violet-500"
+                          >
+                            <option value="0.20">20% Standard</option>
+                            <option value="0.05">5% Reduced</option>
+                            <option value="0.00">0% Zero-Rate</option>
+                          </select>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
-
+ 
               <div className="flex gap-3 justify-end pt-3">
                 <button
                   type="button"

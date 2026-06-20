@@ -13,6 +13,7 @@ import {
 
 // Tab components
 import StockLevelsTab from "@/components/warehouse/StockLevelsTab";
+import WarehousesTab from "@/components/warehouse/WarehousesTab";
 import BinLocationsTab from "@/components/warehouse/BinLocationsTab";
 import StockAuditsTab from "@/components/warehouse/StockAuditsTab";
 import PickListsTab from "@/components/warehouse/PickListsTab";
@@ -32,11 +33,11 @@ function WarehousePageContent() {
   const { token, plugins, user, activeLanguage } = useApp();
   const searchParams = useSearchParams();
 
-  const [tab, setTab] = useState<"stock" | "bins" | "audits" | "picks" | "goodsin" | "shipments" | "adjustments">("stock");
+  const [tab, setTab] = useState<"stock" | "warehouses" | "bins" | "audits" | "picks" | "goodsin" | "shipments" | "adjustments">("stock");
 
   useEffect(() => {
     const tabParam = searchParams.get("tab");
-    if (tabParam && ["stock", "bins", "audits", "picks", "goodsin", "shipments", "adjustments"].includes(tabParam)) {
+    if (tabParam && ["stock", "warehouses", "bins", "audits", "picks", "goodsin", "shipments", "adjustments"].includes(tabParam)) {
       setTab(tabParam as any);
     }
   }, [searchParams]);
@@ -92,6 +93,11 @@ function WarehousePageContent() {
           headers: { Authorization: `Bearer ${token}` }
         });
         setStock(stockRes.data);
+      } else if (tab === "warehouses") {
+        const whRes = await axios.get("http://localhost:5000/api/warehouse/warehouses", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setWarehouses(whRes.data);
       } else if (tab === "bins" && isWmsActive) {
         const binsRes = await axios.get("http://localhost:5000/api/warehouse/bins", {
           headers: { Authorization: `Bearer ${token}` }
@@ -258,9 +264,10 @@ function WarehousePageContent() {
 
       {/* Tabs list */}
       <div className="flex border-b border-slate-200 text-xs font-semibold gap-2 overflow-x-auto pb-1">
-        {(["stock", "bins", "audits", "picks", "goodsin", "shipments", "adjustments"] as const).map((tabName) => {
+        {(["stock", "warehouses", "bins", "audits", "picks", "goodsin", "shipments", "adjustments"] as const).map((tabName) => {
           const tabLabels: Record<string, string> = {
             stock: "Stock Levels",
+            warehouses: "Warehouses",
             bins: "Bin Locations",
             audits: "Stock Audits",
             picks: "Pick Lists",
@@ -288,6 +295,19 @@ function WarehousePageContent() {
             loading={loading} 
             activeLanguage={activeLanguage} 
             getTranslatedName={getTranslatedName} 
+            token={token || ""}
+            onSuccess={fetchWarehouseData}
+            isPimActive={isPimActive}
+          />
+        )}
+ 
+        {tab === "warehouses" && (
+          <WarehousesTab
+            warehouses={warehouses}
+            loading={loading}
+            token={token || ""}
+            onSuccess={fetchWarehouseData}
+            userRole={user?.role}
           />
         )}
 
