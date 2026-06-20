@@ -171,6 +171,17 @@ public static class DbInitializer
             ");
 
             context.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (
+                    SELECT * FROM sys.columns 
+                    WHERE object_id = OBJECT_ID(N'[dbo].[Customers]') 
+                    AND name = N'CreditContractDays'
+                )
+                BEGIN
+                    ALTER TABLE [dbo].[Customers] ADD [CreditContractDays] INT NOT NULL DEFAULT 30;
+                END
+            ");
+
+            context.Database.ExecuteSqlRaw(@"
                 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[RolePermissions]') AND type in (N'U'))
                 BEGIN
                     CREATE TABLE [dbo].[RolePermissions] (

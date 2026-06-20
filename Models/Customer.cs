@@ -16,6 +16,7 @@ public class Customer
     public string Phone { get; set; } = null!;
     public string DefaultCurrencyCode { get; set; } = "GBP";
     public bool IsActive { get; set; } = true;
+    public int CreditContractDays { get; set; } = 30;
 
     public long? CountryId { get; set; }
     public Country? Country { get; set; }
