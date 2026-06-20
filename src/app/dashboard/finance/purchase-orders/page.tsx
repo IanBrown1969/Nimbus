@@ -62,7 +62,8 @@ export default function PurchaseOrdersPage() {
   // Column filtering states
   const [filterPO, setFilterPO] = useState("");
   const [filterOrderDate, setFilterOrderDate] = useState("");
-  const [filterExpectedDate, setFilterExpectedDate] = useState("");
+  const [filterExpectedFrom, setFilterExpectedFrom] = useState("");
+  const [filterExpectedTo, setFilterExpectedTo] = useState("");
   const [filterSupplier, setFilterSupplier] = useState("");
   const [filterLines, setFilterLines] = useState("");
   const [filterTotal, setFilterTotal] = useState("");
@@ -97,7 +98,8 @@ export default function PurchaseOrdersPage() {
   const clearAllFilters = () => {
     setFilterPO("");
     setFilterOrderDate("");
-    setFilterExpectedDate("");
+    setFilterExpectedFrom("");
+    setFilterExpectedTo("");
     setFilterSupplier("");
     setFilterLines("");
     setFilterTotal("");
@@ -107,7 +109,8 @@ export default function PurchaseOrdersPage() {
   const hasFilters = !!(
     filterPO ||
     filterOrderDate ||
-    filterExpectedDate ||
+    filterExpectedFrom ||
+    filterExpectedTo ||
     filterSupplier ||
     filterLines ||
     filterTotal ||
@@ -310,10 +313,20 @@ export default function PurchaseOrdersPage() {
       }
     }
 
-    if (filterExpectedDate) {
+    if (filterExpectedFrom) {
       if (!o.expectedDeliveryDate) return false;
-      const dateStr = new Date(o.expectedDeliveryDate).toLocaleDateString(activeLanguage, { dateStyle: "medium" }).toLowerCase();
-      if (!dateStr.includes(filterExpectedDate.toLowerCase())) {
+      const orderDateTime = new Date(o.expectedDeliveryDate).setHours(0,0,0,0);
+      const fromTime = new Date(filterExpectedFrom).setHours(0,0,0,0);
+      if (orderDateTime < fromTime) {
+        return false;
+      }
+    }
+
+    if (filterExpectedTo) {
+      if (!o.expectedDeliveryDate) return false;
+      const orderDateTime = new Date(o.expectedDeliveryDate).setHours(0,0,0,0);
+      const toTime = new Date(filterExpectedTo).setHours(0,0,0,0);
+      if (orderDateTime > toTime) {
         return false;
       }
     }
@@ -493,14 +506,27 @@ export default function PurchaseOrdersPage() {
                       className="w-full text-[10px] px-2 py-1 bg-white border border-slate-200 rounded focus:outline-none focus:border-emerald-600 font-sans"
                     />
                   </td>
-                  <td className="p-2">
-                    <input
-                      type="text"
-                      placeholder="Filter Expected..."
-                      value={filterExpectedDate}
-                      onChange={(e) => setFilterExpectedDate(e.target.value)}
-                      className="w-full text-[10px] px-2 py-1 bg-white border border-slate-200 rounded focus:outline-none focus:border-emerald-600 font-sans"
-                    />
+                  <td className="p-2 min-w-[145px]">
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[8px] text-slate-400 font-bold uppercase w-8">From:</span>
+                        <input
+                          type="date"
+                          value={filterExpectedFrom}
+                          onChange={(e) => setFilterExpectedFrom(e.target.value)}
+                          className="w-full text-[9px] px-1.5 py-0.5 bg-white border border-slate-200 rounded focus:outline-none focus:border-emerald-600 font-sans cursor-pointer text-slate-700"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[8px] text-slate-400 font-bold uppercase w-8">To:</span>
+                        <input
+                          type="date"
+                          value={filterExpectedTo}
+                          onChange={(e) => setFilterExpectedTo(e.target.value)}
+                          className="w-full text-[9px] px-1.5 py-0.5 bg-white border border-slate-200 rounded focus:outline-none focus:border-emerald-600 font-sans cursor-pointer text-slate-700"
+                        />
+                      </div>
+                    </div>
                   </td>
                   <td className="p-2">
                     <input

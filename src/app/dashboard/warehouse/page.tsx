@@ -117,7 +117,7 @@ function WarehousePageContent() {
         const poRes = await axios.get("http://localhost:5000/api/finance/purchase-orders", {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setPurchaseOrders(poRes.data.filter((p: any) => p.status === "Ordered" || p.status === 1 || p.status === 2));
+        setPurchaseOrders(poRes.data.filter((p: any) => p.status !== 3 && p.status !== 4 && p.status !== "Received" && p.status !== "Cancelled"));
 
         const binsRes = await axios.get("http://localhost:5000/api/warehouse/bins", {
           headers: { Authorization: `Bearer ${token}` }

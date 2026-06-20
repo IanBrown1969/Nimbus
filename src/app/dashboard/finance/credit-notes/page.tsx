@@ -221,7 +221,7 @@ export default function CreditNotesPage() {
                   value={invoiceId}
                   onChange={(e) => {
                     setInvoiceId(e.target.value);
-                    const selectedInv = invoices.find(inv => inv.id === e.target.value);
+                    const selectedInv = invoices.find(inv => String(inv.id) === String(e.target.value));
                     if (selectedInv) {
                       setCustomerName(selectedInv.customerName);
                     }
