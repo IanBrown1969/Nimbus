@@ -11,15 +11,21 @@
 ### Completed
 - `[x]` Initialized Next.js 16 project structure.
 - `[x]` Created local standards guideline (`agent.md`).
+- `[x]` Added `lucide-react` and `axios` dependencies.
+- `[x]` Configured global Layout (`src/app/layout.tsx`) and Theme.
+- `[x]` Created Tenant Login Screen (`src/app/login/page.tsx`).
+- `[x]` Implemented Navigation and Sidebar components in Dashboard Layout.
+- `[x]` Built Settings Marketplace Add-ons (`src/app/dashboard/settings/plugins/page.tsx`).
+- `[x]` Built Warehousing dashboard with WMS/PIM extensions (`src/app/dashboard/warehouse/page.tsx`).
+- `[x]` Built Finance accounting dashboard with supplier integration (`src/app/dashboard/finance/page.tsx`).
 
 ### In Progress
-- `[ ]` Adding `lucide-react` and `axios` dependencies.
-- `[ ]` Configuring global Layout (`src/app/layout.tsx`) and Theme.
-- `[ ]` Creating Tenant Login Screen (`src/app/login/page.tsx`).
-- `[ ]` Implementing Navigation and Sidebar components.
-- `[ ]` Building Settings Marketplace (`src/app/dashboard/settings/plugins/page.tsx`).
-- `[ ]` Building Warehousing dashboard (`src/app/dashboard/warehouse/page.tsx`).
-- `[ ]` Building Finance accounting dashboard (`src/app/dashboard/finance/page.tsx`).
+- `[ ]` Improving interactive reporting charts and data visualisations.
 
 ## Implemented Pages & Layouts
-- *(No pages developed yet. Scaffolding is complete.)*
+- **Login screen**: Tenant/company login form mapping to correct base API configuration.
+- **Dashboard Layout**: Dynamic Sidebar showing menu routes based on active module context (WMS/PIM/SUP/VAT).
+- **Dashboard Page**: Quick overview statistics (billing, stock catalog count, compliance audits).
+- **Settings Marketplace**: Activation toggle for add-on modules mapping subscription cost.
+- **Warehouse Operations**: Inventory stock levels, bin location listings, audit sheet generation, shipments, and pick list processing.
+- **Finance Ledger**: Invoice posting, payments processing, general ledger double-entry lines viewer, and supplier directory.

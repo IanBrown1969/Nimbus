@@ -51,6 +51,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (savedToken && savedUser) {
       setTokenState(savedToken);
       const parsedUser = JSON.parse(savedUser);
+      if (parsedUser) {
+        parsedUser.tenantId = String(parsedUser.tenantId);
+      }
       setUserState(parsedUser);
       setLanguageState(parsedUser.language || "en-GB");
       setCurrencyState(parsedUser.currency || "GBP");
@@ -66,12 +69,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [token]);
 
   const login = (newToken: string, newUser: UserProfile) => {
+    const formattedUser = {
+      ...newUser,
+      tenantId: String(newUser.tenantId)
+    };
     setTokenState(newToken);
-    setUserState(newUser);
+    setUserState(formattedUser);
     setLanguageState(newUser.language || "en-GB");
     setCurrencyState(newUser.currency || "GBP");
     localStorage.setItem("nimbus_token", newToken);
-    localStorage.setItem("nimbus_user", JSON.stringify(newUser));
+    localStorage.setItem("nimbus_user", JSON.stringify(formattedUser));
   };
 
   const logout = () => {
@@ -85,7 +92,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const setLanguage = (lang: string) => {
     setLanguageState(lang);
     if (user) {
-      const updatedUser = { ...user, language: lang };
+      const updatedUser = { ...user, language: lang, tenantId: String(user.tenantId) };
       setUserState(updatedUser);
       localStorage.setItem("nimbus_user", JSON.stringify(updatedUser));
     }

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import axios from "axios";
+import GoldenArrow from "@/components/common/GoldenArrow";
 import { 
   Receipt, 
   BookOpen, 
@@ -185,9 +186,9 @@ export default function FinancePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <span className="text-xs font-bold text-violet-400 uppercase tracking-widest font-heading">Finance</span>
-          <h2 className="text-3xl font-bold font-heading text-slate-100">Accounting Ledger</h2>
-          <p className="text-slate-400 text-sm mt-1">Raise VAT invoices, configure multi-currency conversions, and track general ledger journals.</p>
+          <span className="text-xs font-bold text-violet-650 uppercase tracking-widest font-heading">Finance</span>
+          <h2 className="text-3xl font-bold font-heading text-slate-900">Accounting Ledger</h2>
+          <p className="text-slate-600 text-sm mt-1">Raise VAT invoices, configure multi-currency conversions, and track general ledger journals.</p>
         </div>
         {(user?.role === "CompanyAdmin" || user?.role === "Accounts") && (
           <button
@@ -201,50 +202,50 @@ export default function FinancePage() {
 
       {/* Quick Navigation Hub */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Link href="/dashboard/finance/accounts" className="p-4 bg-slate-900/40 hover:bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-xl text-center transition-all group">
-          <span className="block text-xs font-bold text-slate-200 group-hover:text-violet-400">Ledger Accounts</span>
+        <Link href="/dashboard/finance/accounts" className="p-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-center transition-all group shadow-sm">
+          <span className="block text-xs font-bold text-slate-700 group-hover:text-violet-600">Ledger Accounts</span>
           <span className="text-[9px] text-slate-500 block mt-1">Chart of Accounts</span>
         </Link>
-        <Link href="/dashboard/finance/sales-orders" className="p-4 bg-slate-900/40 hover:bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-xl text-center transition-all group">
-          <span className="block text-xs font-bold text-slate-200 group-hover:text-violet-400">Sales Orders</span>
+        <Link href="/dashboard/finance/sales-orders" className="p-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-center transition-all group shadow-sm">
+          <span className="block text-xs font-bold text-slate-700 group-hover:text-violet-600">Sales Orders</span>
           <span className="text-[9px] text-slate-500 block mt-1">Draft & Approve SO</span>
         </Link>
-        <Link href="/dashboard/finance/supplier-bills" className="p-4 bg-slate-900/40 hover:bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-xl text-center transition-all group">
-          <span className="block text-xs font-bold text-slate-200 group-hover:text-violet-400">Supplier Bills</span>
+        <Link href="/dashboard/finance/supplier-bills" className="p-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-center transition-all group shadow-sm">
+          <span className="block text-xs font-bold text-slate-700 group-hover:text-violet-600">Supplier Bills</span>
           <span className="text-[9px] text-slate-500 block mt-1">AP & Vendor Payments</span>
         </Link>
-        <Link href="/dashboard/finance/credit-notes" className="p-4 bg-slate-900/40 hover:bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-xl text-center transition-all group">
-          <span className="block text-xs font-bold text-slate-200 group-hover:text-violet-400">Credit Notes</span>
+        <Link href="/dashboard/finance/credit-notes" className="p-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-center transition-all group shadow-sm">
+          <span className="block text-xs font-bold text-slate-700 group-hover:text-violet-600">Credit Notes</span>
           <span className="text-[9px] text-slate-500 block mt-1">Sales Adjustments</span>
         </Link>
-        <Link href="/dashboard/finance/vat" className="p-4 bg-slate-900/40 hover:bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-xl text-center transition-all group">
-          <span className="block text-xs font-bold text-slate-200 group-hover:text-violet-400">VAT Returns</span>
+        <Link href="/dashboard/finance/vat" className="p-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-center transition-all group shadow-sm">
+          <span className="block text-xs font-bold text-slate-700 group-hover:text-violet-600">VAT Returns</span>
           <span className="text-[9px] text-slate-500 block mt-1">HMRC 9-Boxes</span>
         </Link>
-        <Link href="/dashboard/finance/bank" className="p-4 bg-slate-900/40 hover:bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-xl text-center transition-all group">
-          <span className="block text-xs font-bold text-slate-200 group-hover:text-violet-400">Bank Feeds</span>
+        <Link href="/dashboard/finance/bank" className="p-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-center transition-all group shadow-sm">
+          <span className="block text-xs font-bold text-slate-700 group-hover:text-violet-600">Bank Feeds</span>
           <span className="text-[9px] text-slate-500 block mt-1">Match & Reconcile</span>
         </Link>
-        <Link href="/dashboard/finance/payroll" className="p-4 bg-slate-900/40 hover:bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-xl text-center transition-all group">
-          <span className="block text-xs font-bold text-slate-200 group-hover:text-violet-400">Payroll runs</span>
+        <Link href="/dashboard/finance/payroll" className="p-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-center transition-all group shadow-sm">
+          <span className="block text-xs font-bold text-slate-700 group-hover:text-violet-600">Payroll runs</span>
           <span className="text-[9px] text-slate-500 block mt-1">Slips & PAYE tax</span>
         </Link>
-        <Link href="/dashboard/finance/claims" className="p-4 bg-slate-900/40 hover:bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-xl text-center transition-all group">
-          <span className="block text-xs font-bold text-slate-200 group-hover:text-violet-400">Expense claims</span>
+        <Link href="/dashboard/finance/claims" className="p-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-center transition-all group shadow-sm">
+          <span className="block text-xs font-bold text-slate-700 group-hover:text-violet-600">Expense claims</span>
           <span className="text-[9px] text-slate-500 block mt-1">Receipt approvals</span>
         </Link>
-        <Link href="/dashboard/finance/assets" className="p-4 bg-slate-900/40 hover:bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-xl text-center transition-all group">
-          <span className="block text-xs font-bold text-slate-200 group-hover:text-violet-400">Fixed Assets</span>
+        <Link href="/dashboard/finance/assets" className="p-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-center transition-all group shadow-sm">
+          <span className="block text-xs font-bold text-slate-700 group-hover:text-violet-600">Fixed Assets</span>
           <span className="text-[9px] text-slate-500 block mt-1">Depreciation schedules</span>
         </Link>
-        <Link href="/dashboard/finance/quotes" className="p-4 bg-slate-900/40 hover:bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-xl text-center transition-all group">
-          <span className="block text-xs font-bold text-slate-200 group-hover:text-violet-400">Quotes & Est.</span>
+        <Link href="/dashboard/finance/quotes" className="p-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-center transition-all group shadow-sm">
+          <span className="block text-xs font-bold text-slate-700 group-hover:text-violet-600">Quotes & Est.</span>
           <span className="text-[9px] text-slate-500 block mt-1">Customer proposals</span>
         </Link>
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-xs">
           {error}
         </div>
       )}
@@ -253,9 +254,9 @@ export default function FinancePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         
         {/* Sales Invoices List */}
-        <div className="p-6 rounded-2xl border border-slate-900 bg-slate-900/30 backdrop-blur-sm space-y-4">
-          <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-            <Receipt className="w-5 h-5 text-violet-400" />
+        <div className="p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-4">
+          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <Receipt className="w-5 h-5 text-violet-600" />
             Customer Billing Invoices
           </h3>
 
@@ -264,22 +265,28 @@ export default function FinancePage() {
               <div className="text-slate-500 text-xs text-center py-6">No invoices issued. Create one to begin.</div>
             ) : (
               invoices.map((inv) => (
-                <div key={inv.id} className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl flex items-center justify-between text-xs hover:border-slate-700 transition-colors">
+                <div key={inv.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs hover:border-slate-300 transition-colors">
                   <div>
-                    <span className="font-mono font-bold text-violet-400 block">{inv.invoiceNumber}</span>
-                    <span className="text-slate-400 block mt-0.5">{inv.customerName}</span>
-                    <span className="text-[10px] text-slate-500 block mt-1">Date: {new Date(inv.invoiceDate).toLocaleDateString()}</span>
+                    <span className="font-mono font-bold text-violet-600 flex items-center gap-1.5">
+                      <span>{inv.invoiceNumber}</span>
+                      <GoldenArrow type="invoice" id={inv.invoiceNumber} />
+                    </span>
+                    <span className="text-slate-650 flex items-center mt-0.5">
+                      <span>{inv.customerName}</span>
+                      <GoldenArrow type="customer" id={inv.customerName} />
+                    </span>
+                    <span className="text-[10px] text-slate-550 block mt-1">Date: {new Date(inv.invoiceDate).toLocaleDateString()}</span>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <span className="block font-bold text-slate-200">{formatMoney(inv.totalGross, inv.currencyCode)}</span>
+                      <span className="block font-bold text-slate-800">{formatMoney(inv.totalGross, inv.currencyCode)}</span>
                       {inv.currencyCode !== "GBP" && (
                         <span className="block text-[10px] text-slate-500 mt-0.5">Rate: {inv.exchangeRateToBase}</span>
                       )}
                       <span className={`inline-flex items-center gap-1 mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${
                         inv.status === "Paid" || inv.status === 2
-                          ? "text-emerald-400 bg-emerald-950/20 border-emerald-900/40"
-                          : "text-amber-400 bg-amber-950/20 border-amber-900/40"
+                          ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                          : "text-amber-700 bg-amber-50 border-amber-200"
                       }`}>
                         <CheckCircle2 className="w-2.5 h-2.5" /> {inv.status === "Paid" || inv.status === 2 ? "Paid" : "Issued"}
                       </span>
@@ -303,37 +310,37 @@ export default function FinancePage() {
         </div>
 
         {/* General Ledger Postings */}
-        <div className="p-6 rounded-2xl border border-slate-900 bg-slate-900/30 backdrop-blur-sm space-y-4">
-          <h3 className="text-sm font-bold text-slate-200 flex items-center justify-between">
+        <div className="p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-4">
+          <h3 className="text-sm font-bold text-slate-800 flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-cyan-400" />
+              <BookOpen className="w-5 h-5 text-cyan-600" />
               General Ledger (UK HMRC Double-Entry)
             </span>
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-cyan-950 border border-cyan-800 text-cyan-400 px-1.5 py-0.5 rounded uppercase">
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-cyan-50 border border-cyan-200 text-cyan-700 px-1.5 py-0.5 rounded uppercase">
               <Scale className="w-3 h-3" /> Balanced
             </span>
           </h3>
 
-          <div className="space-y-4 overflow-y-auto max-h-[400px] pr-2 divide-y divide-slate-850">
+          <div className="space-y-4 overflow-y-auto max-h-[400px] pr-2 divide-y divide-slate-200">
             {ledger.length === 0 ? (
               <div className="text-slate-500 text-xs text-center py-6">No journal entry postings recorded.</div>
             ) : (
               ledger.map((entry) => (
                 <div key={entry.id} className="pt-4 first:pt-0 space-y-2">
                   <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-slate-300">{entry.description}</span>
-                    <span className="font-mono text-slate-400">{entry.reference}</span>
+                    <span className="text-slate-700">{entry.description}</span>
+                    <span className="font-mono text-slate-500">{entry.reference}</span>
                   </div>
                   
                   {/* Ledger Lines */}
-                  <div className="space-y-1 bg-slate-950/60 p-2.5 rounded-lg border border-slate-900">
+                  <div className="space-y-1 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
                     {entry.lines.map((line: any) => (
                       <div key={line.id} className="flex justify-between text-[11px] font-mono">
-                        <span className="text-slate-400 w-1/3">Acc: {line.AccountCode}</span>
-                        <span className="text-emerald-400 text-right w-1/3">
+                        <span className="text-slate-500 w-1/3">Acc: {line.AccountCode}</span>
+                        <span className="text-emerald-700 text-right w-1/3">
                           {line.debit > 0 ? `DR ${formatMoney(line.debit, "GBP")}` : ""}
                         </span>
-                        <span className="text-violet-400 text-right w-1/3">
+                        <span className="text-violet-650 text-right w-1/3">
                           {line.credit > 0 ? `CR ${formatMoney(line.credit, "GBP")}` : ""}
                         </span>
                       </div>
@@ -348,15 +355,15 @@ export default function FinancePage() {
       </div>
 
       {/* Supplier & Procurement module checks */}
-      <div className="p-6 rounded-2xl border border-slate-900 bg-slate-900/30 backdrop-blur-sm flex flex-col justify-between">
+      <div className="p-6 rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col justify-between">
         <div className="space-y-4">
-          <h3 className="text-sm font-bold text-slate-200 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-slate-800 flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <ShoppingBag className="w-5 h-5 text-emerald-400" />
+              <ShoppingBag className="w-5 h-5 text-emerald-600" />
               Supplier Procurement (SUP Plugin)
             </span>
             {!isSupActive && (
-              <span className="px-2 py-0.5 text-[9px] font-bold bg-rose-950 border border-rose-800 text-rose-400 rounded flex items-center gap-1">
+              <span className="px-2 py-0.5 text-[9px] font-bold bg-rose-50 border border-rose-250 text-rose-600 rounded flex items-center gap-1">
                 <Lock className="w-2.5 h-2.5" /> Locked Add-on
               </span>
             )}
@@ -366,19 +373,19 @@ export default function FinancePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Suppliers List */}
               <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
-                  <Users className="w-4 h-4 text-cyan-400" /> Suppliers Directory
+                <h4 className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-cyan-600" /> Suppliers Directory
                 </h4>
                 {suppliers.length === 0 ? (
-                  <div className="text-slate-600 text-xs italic">No suppliers defined.</div>
+                  <div className="text-slate-500 text-xs italic">No suppliers defined.</div>
                 ) : (
                   suppliers.map(s => (
-                    <div key={s.id} className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between">
+                    <div key={s.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs flex justify-between">
                       <div>
-                        <strong className="block text-slate-200">{s.name}</strong>
-                        <span className="block text-slate-500 text-[10px] mt-0.5">{s.email}</span>
+                        <strong className="block text-slate-800">{s.name}</strong>
+                        <span className="block text-slate-550 text-[10px] mt-0.5">{s.email}</span>
                       </div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-widest">{s.defaultCurrencyCode}</span>
+                      <span className="text-[10px] text-slate-550 uppercase tracking-widest">{s.defaultCurrencyCode}</span>
                     </div>
                   ))
                 )}
@@ -386,19 +393,19 @@ export default function FinancePage() {
 
               {/* Purchase Orders List */}
               <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
-                  <Coins className="w-4 h-4 text-violet-400" /> Purchase Orders
+                <h4 className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
+                  <Coins className="w-4 h-4 text-violet-600" /> Purchase Orders
                 </h4>
                 {purchaseOrders.length === 0 ? (
-                  <div className="text-slate-600 text-xs italic">No purchase orders drafted.</div>
+                  <div className="text-slate-500 text-xs italic">No purchase orders drafted.</div>
                 ) : (
                   purchaseOrders.map(po => (
-                    <div key={po.id} className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center">
+                    <div key={po.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs flex justify-between items-center">
                       <div>
-                        <strong className="block text-slate-200">{po.orderNumber}</strong>
-                        <span className="block text-slate-500 text-[10px] mt-0.5">{po.supplier.name}</span>
+                        <strong className="block text-slate-800">{po.orderNumber}</strong>
+                        <span className="block text-slate-550 text-[10px] mt-0.5">{po.supplier.name}</span>
                       </div>
-                      <span className="text-[10px] font-bold text-cyan-400 bg-cyan-950 px-1.5 py-0.5 border border-cyan-850 rounded">
+                      <span className="text-[10px] font-bold text-cyan-700 bg-cyan-50 px-1.5 py-0.5 border border-cyan-200 rounded">
                         {po.status}
                       </span>
                     </div>
@@ -407,11 +414,11 @@ export default function FinancePage() {
               </div>
             </div>
           ) : (
-            <div className="py-8 flex flex-col items-center justify-center text-center space-y-3 bg-slate-950/30 rounded-xl border border-dashed border-slate-800">
-              <Lock className="w-8 h-8 text-slate-600" />
+            <div className="py-8 flex flex-col items-center justify-center text-center space-y-3 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+              <Lock className="w-8 h-8 text-slate-400" />
               <div>
-                <h4 className="text-xs font-bold text-slate-400">Supplier Procurement System Locked</h4>
-                <p className="text-[10px] text-slate-500 max-w-[400px] mt-1">Activate the Supplier & Purchasing Management plugin (SUP) in settings to enable vendor records, purchase orders, and goods received note tracking.</p>
+                <h4 className="text-xs font-bold text-slate-700">Supplier Procurement System Locked</h4>
+                <p className="text-[10px] text-slate-550 max-w-[400px] mt-1">Activate the Supplier & Purchasing Management plugin (SUP) in settings to enable vendor records, purchase orders, and goods received note tracking.</p>
               </div>
             </div>
           )}
@@ -420,46 +427,46 @@ export default function FinancePage() {
 
       {/* Invoice Modal */}
       {showInvoiceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md p-6 bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl space-y-5">
-            <h3 className="text-base font-bold text-slate-100">Issue Sales Tax Invoice</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md p-6 bg-white border border-slate-200 rounded-2xl shadow-2xl space-y-5">
+            <h3 className="text-base font-bold text-slate-900">Issue Sales Tax Invoice</h3>
             
             <form onSubmit={handlePostInvoice} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">Invoice Number</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Invoice Number</label>
                   <input
                     type="text"
                     required
                     value={invoiceNumber}
                     onChange={(e) => setInvoiceNumber(e.target.value)}
                     placeholder="INV-2026-0002"
-                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:border-violet-500 text-slate-200"
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-850"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">Customer Name</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Customer Name</label>
                   <input
                     type="text"
                     required
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     placeholder="Builders Depot Ltd"
-                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:border-violet-500 text-slate-200"
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-850"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">Currency</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Currency</label>
                   <select
                     value={currency}
                     onChange={(e) => {
                       setCurrency(e.target.value);
                       setExchangeRate(e.target.value === "GBP" ? 1.0 : (e.target.value === "USD" ? 1.25 : 1.15));
                     }}
-                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:border-violet-500 text-slate-200"
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-850"
                   >
                     <option value="GBP">GBP (£)</option>
                     <option value="USD">USD ($)</option>
@@ -467,21 +474,21 @@ export default function FinancePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">Exchange Rate (to GBP)</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Exchange Rate (to GBP)</label>
                   <input
                     type="number"
                     step="0.01"
                     required
                     value={exchangeRate}
                     onChange={(e) => setExchangeRate(Number(e.target.value))}
-                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:border-violet-500 text-slate-200"
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-850"
                   />
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-950 rounded-xl border border-slate-850 space-y-3">
-                <span className="block text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1">
-                  <Percent className="w-3.5 h-3.5 text-violet-400" /> Invoice Line Item Details
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                <span className="block text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1">
+                  <Percent className="w-3.5 h-3.5 text-violet-600" /> Invoice Line Item Details
                 </span>
                 
                 <div>
@@ -489,7 +496,7 @@ export default function FinancePage() {
                   <select
                     value={selectedStockId}
                     onChange={(e) => setSelectedStockId(e.target.value)}
-                    className="w-full mt-1 text-xs px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded text-slate-300"
+                    className="w-full mt-1 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-700"
                   >
                     {stockList.map(item => (
                       <option key={item.id} value={item.id}>{item.sku} - {getTranslatedName(item.name)}</option>
@@ -504,7 +511,7 @@ export default function FinancePage() {
                       type="number"
                       value={lineQty}
                       onChange={(e) => setLineQty(Number(e.target.value))}
-                      className="w-full mt-1 text-xs px-2 py-1 bg-slate-900 border border-slate-800 rounded text-slate-300"
+                      className="w-full mt-1 text-xs px-2 py-1 bg-white border border-slate-200 rounded text-slate-700"
                     />
                   </div>
                   <div>
@@ -513,7 +520,7 @@ export default function FinancePage() {
                       type="number"
                       value={linePrice}
                       onChange={(e) => setLinePrice(Number(e.target.value))}
-                      className="w-full mt-1 text-xs px-2 py-1 bg-slate-900 border border-slate-800 rounded text-slate-300"
+                      className="w-full mt-1 text-xs px-2 py-1 bg-white border border-slate-200 rounded text-slate-700"
                     />
                   </div>
                   <div>
@@ -521,7 +528,7 @@ export default function FinancePage() {
                     <select
                       value={vatRate}
                       onChange={(e) => setVatRate(Number(e.target.value))}
-                      className="w-full mt-1 text-xs px-2 py-1 bg-slate-900 border border-slate-800 rounded text-slate-300"
+                      className="w-full mt-1 text-xs px-2 py-1 bg-white border border-slate-200 rounded text-slate-700"
                     >
                       <option value="0.20">20% Standard</option>
                       <option value="0.05">5% Reduced</option>
@@ -535,7 +542,7 @@ export default function FinancePage() {
                 <button
                   type="button"
                   onClick={() => setShowInvoiceModal(false)}
-                  className="px-4 py-2 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-semibold rounded-lg"
+                  className="px-4 py-2 border border-slate-200 text-slate-500 hover:text-slate-750 text-xs font-semibold rounded-lg"
                 >
                   Cancel
                 </button>
@@ -552,19 +559,19 @@ export default function FinancePage() {
       )}
       {/* Pay Invoice Modal */}
       {showPayInvoiceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4">
-          <div className="w-full max-w-sm p-6 bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-              <Landmark className="w-5 h-5 text-violet-400" /> Receive Customer Payment
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm p-6 bg-white border border-slate-200 rounded-2xl shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Landmark className="w-5 h-5 text-violet-600" /> Receive Customer Payment
             </h3>
             
             <div className="space-y-4">
               <div>
-                <label className="text-[10px] font-bold uppercase text-slate-400">Target Bank Account</label>
+                <label className="text-[10px] font-bold uppercase text-slate-500">Target Bank Account</label>
                 <select
                   value={selectedBankId}
                   onChange={(e) => setSelectedBankId(e.target.value)}
-                  className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:border-violet-500 text-slate-250 font-sans"
+                  className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-850 font-sans"
                 >
                   {bankAccounts.map(b => (
                     <option key={b.id} value={b.id}>{b.bankName} - {b.accountName} (Balance: {formatMoney(b.currentBalance)})</option>
@@ -579,7 +586,7 @@ export default function FinancePage() {
                     setShowPayInvoiceModal(false);
                     setSelectedInvoiceId(null);
                   }}
-                  className="px-4 py-2 border border-slate-800 text-slate-400 hover:text-slate-250 text-xs font-semibold rounded-lg"
+                  className="px-4 py-2 border border-slate-200 text-slate-500 hover:text-slate-750 text-xs font-semibold rounded-lg"
                 >
                   Cancel
                 </button>
