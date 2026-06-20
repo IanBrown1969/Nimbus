@@ -10,3 +10,4 @@ C:\Users\Ian.Brown\Documents\Projects\nimbus_erp\database-structures\obj\Debug\n
 C:\Users\Ian.Brown\Documents\Projects\nimbus_erp\database-structures\obj\Debug\net10.0\refint\database-structures.dll
 C:\Users\Ian.Brown\Documents\Projects\nimbus_erp\database-structures\obj\Debug\net10.0\database-structures.pdb
 C:\Users\Ian.Brown\Documents\Projects\nimbus_erp\database-structures\obj\Debug\net10.0\ref\database-structures.dll
+C:\Users\Ian.Brown\Documents\Projects\nimbus_erp\database-structures\obj\Debug\net10.0\database-structures.sourcelink.json

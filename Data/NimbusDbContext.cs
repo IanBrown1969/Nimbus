@@ -84,6 +84,10 @@ public class NimbusDbContext : DbContext
     public DbSet<Country> Countries { get; set; } = null!;
     public DbSet<TaxClass> TaxClasses { get; set; } = null!;
     public DbSet<TaxRate> TaxRates { get; set; } = null!;
+    public DbSet<AccountingDimension> AccountingDimensions { get; set; } = null!;
+    public DbSet<AccountingPeriod> AccountingPeriods { get; set; } = null!;
+    public DbSet<Customer> Customers { get; set; } = null!;
+    public DbSet<CustomerAddress> CustomerAddresses { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -111,6 +115,7 @@ public class NimbusDbContext : DbContext
         builder.Entity<TenantPlugin>().HasIndex(tp => new { tp.TenantId, tp.PluginId }).IsUnique();
         builder.Entity<User>().HasIndex(u => new { u.TenantId, u.Username }).IsUnique();
         builder.Entity<StockItem>().HasIndex(s => new { s.TenantId, s.SKU }).IsUnique();
+        builder.Entity<Customer>().HasIndex(c => new { c.TenantId, c.CustomerRef }).IsUnique();
         builder.Entity<BinLocation>().HasIndex(b => new { b.TenantId, b.Code }).IsUnique();
         builder.Entity<Supplier>().HasIndex(s => new { s.TenantId, s.Name }).IsUnique();
         builder.Entity<PurchaseOrder>().HasIndex(p => new { p.TenantId, p.OrderNumber }).IsUnique();
@@ -134,6 +139,8 @@ public class NimbusDbContext : DbContext
         builder.Entity<Country>().HasIndex(c => new { c.TenantId, c.Code }).IsUnique();
         builder.Entity<TaxClass>().HasIndex(tc => new { tc.TenantId, tc.Code }).IsUnique();
         builder.Entity<TaxRate>().HasIndex(tr => new { tr.TenantId, tr.CountryId, tr.TaxClassId }).IsUnique();
+        builder.Entity<AccountingDimension>().HasIndex(ad => new { ad.TenantId, ad.Code, ad.Type }).IsUnique();
+        builder.Entity<AccountingPeriod>().HasIndex(ap => new { ap.TenantId, ap.Name }).IsUnique();
 
         // Setup multi-tenant global query filters
         builder.Entity<User>().HasQueryFilter(u => u.TenantId == _tenantProvider.TenantId);
@@ -173,12 +180,17 @@ public class NimbusDbContext : DbContext
         builder.Entity<Country>().HasQueryFilter(c => c.TenantId == _tenantProvider.TenantId);
         builder.Entity<TaxClass>().HasQueryFilter(tc => tc.TenantId == _tenantProvider.TenantId);
         builder.Entity<TaxRate>().HasQueryFilter(tr => tr.TenantId == _tenantProvider.TenantId);
+        builder.Entity<AccountingDimension>().HasQueryFilter(ad => ad.TenantId == _tenantProvider.TenantId);
+        builder.Entity<AccountingPeriod>().HasQueryFilter(ap => ap.TenantId == _tenantProvider.TenantId);
+        builder.Entity<Customer>().HasQueryFilter(c => c.TenantId == _tenantProvider.TenantId);
+        builder.Entity<CustomerAddress>().HasQueryFilter(ca => ca.TenantId == _tenantProvider.TenantId);
     }
 
     // Automate TenantId injection on SaveChanges
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         ApplyTenantId();
+        ValidatePeriods();
         var auditLogs = GenerateAuditLogs();
         var result = base.SaveChanges(acceptAllChangesOnSuccess);
         
@@ -193,6 +205,7 @@ public class NimbusDbContext : DbContext
     public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
         ApplyTenantId();
+        ValidatePeriods();
         var auditLogs = GenerateAuditLogs();
         var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         
@@ -222,6 +235,35 @@ public class NimbusDbContext : DbContext
                 {
                     tenantIdProp.SetValue(entry.Entity, tenantId);
                 }
+            }
+        }
+    }
+
+    private void ValidatePeriods()
+    {
+        var tenantId = _tenantProvider.TenantId;
+        if (tenantId == null || tenantId == 0) return;
+
+        var modifiedEntries = ChangeTracker.Entries<LedgerEntry>()
+            .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified || e.State == EntityState.Deleted)
+            .ToList();
+
+        if (!modifiedEntries.Any()) return;
+
+        var lockedPeriods = AccountingPeriods
+            .Where(ap => ap.IsLocked)
+            .ToList();
+
+        foreach (var entry in modifiedEntries)
+        {
+            var date = entry.State == EntityState.Deleted
+                ? (DateTime)entry.OriginalValues["EntryDate"]
+                : entry.Entity.EntryDate;
+
+            var isLocked = lockedPeriods.Any(p => date.Date >= p.StartDate.Date && date.Date <= p.EndDate.Date);
+            if (isLocked)
+            {
+                throw new InvalidOperationException($"Cannot add, modify or delete ledger entries in a locked accounting period ({date:yyyy-MM-dd}).");
             }
         }
     }

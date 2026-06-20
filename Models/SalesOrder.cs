@@ -31,5 +31,8 @@ public long TenantId { get; set; }
 
     public SalesOrderStatus Status { get; set; } = SalesOrderStatus.Draft;
 
+    public long? CreatedByUserId { get; set; }
+    public User? CreatedByUser { get; set; }
+
     public ICollection<SalesOrderLine> Lines { get; set; } = new List<SalesOrderLine>();
 }

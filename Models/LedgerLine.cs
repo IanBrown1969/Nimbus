@@ -19,4 +19,11 @@ public long LedgerEntryId { get; set; }
     public decimal OriginalAmount { get; set; } // original amount in foreign currency
     public string OriginalCurrencyCode { get; set; } = "GBP";
     public decimal ExchangeRate { get; set; } = 1.0m;
+
+    // SAP B1 Style Fixed dimensions
+    public long? DepartmentDimensionId { get; set; }
+    public AccountingDimension? DepartmentDimension { get; set; }
+
+    public long? ProjectDimensionId { get; set; }
+    public AccountingDimension? ProjectDimension { get; set; }
 }

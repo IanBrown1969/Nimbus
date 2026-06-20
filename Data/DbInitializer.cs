@@ -471,6 +471,92 @@ public static class DbInitializer
                 context.SaveChanges();
             }
 
+            // Seed Customers (New Dedicated Table)
+            if (!context.Customers.Any())
+            {
+                var customer1 = new Customer
+                {
+                    TenantId = tenant.Id,
+                    CustomerRef = "CUST-0001",
+                    Name = "John Builders Ltd",
+                    CompanyName = "John Builders",
+                    Email = "purchasing@johnbuilders.co.uk",
+                    Phone = "020 7946 0192",
+                    DefaultCurrencyCode = "GBP",
+                    IsActive = true,
+                    Country = gb
+                };
+
+                var customer2 = new Customer
+                {
+                    TenantId = tenant.Id,
+                    CustomerRef = "CUST-0002",
+                    Name = "Gérard Travaux SARL",
+                    CompanyName = "Gérard Travaux",
+                    Email = "contact@gerardtravaux.fr",
+                    Phone = "+33 1 42 27 78 90",
+                    DefaultCurrencyCode = "EUR",
+                    IsActive = true,
+                    Country = fr
+                };
+
+                context.Customers.AddRange(customer1, customer2);
+                context.SaveChanges();
+
+                // Seed Customer Addresses
+                context.CustomerAddresses.AddRange(
+                    new CustomerAddress
+                    {
+                        TenantId = tenant.Id,
+                        CustomerId = customer1.Id,
+                        AddressName = "Main Billing",
+                        AddressLine1 = "50 Cement Works Road",
+                        City = "London",
+                        PostalCode = "SE1 0XX",
+                        Country = gb,
+                        AddressType = "Billing",
+                        IsDefault = true
+                    },
+                    new CustomerAddress
+                    {
+                        TenantId = tenant.Id,
+                        CustomerId = customer1.Id,
+                        AddressName = "Secondary Shipping",
+                        AddressLine1 = "Unit 4, Industrial Estate",
+                        City = "London",
+                        PostalCode = "E1 2YY",
+                        Country = gb,
+                        AddressType = "Shipping",
+                        IsDefault = true
+                    },
+                    new CustomerAddress
+                    {
+                        TenantId = tenant.Id,
+                        CustomerId = customer2.Id,
+                        AddressName = "Siège Social (Billing)",
+                        AddressLine1 = "15 Rue de Briques",
+                        City = "Paris",
+                        PostalCode = "75001",
+                        Country = fr,
+                        AddressType = "Billing",
+                        IsDefault = true
+                    },
+                    new CustomerAddress
+                    {
+                        TenantId = tenant.Id,
+                        CustomerId = customer2.Id,
+                        AddressName = "Entrepôt Paris (Shipping)",
+                        AddressLine1 = "45 Avenue de la Marne",
+                        City = "Paris",
+                        PostalCode = "92000",
+                        Country = fr,
+                        AddressType = "Shipping",
+                        IsDefault = true
+                    }
+                );
+                context.SaveChanges();
+            }
+
             // Seed Bank Accounts
             var currentAccount = new BankAccount
             {

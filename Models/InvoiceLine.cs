@@ -20,4 +20,11 @@ public long InvoiceId { get; set; }
     public decimal TaxAmount => Quantity * UnitPrice * TaxRate; // In transaction currency
     public decimal NetAmount => Quantity * UnitPrice; // In transaction currency
     public decimal GrossAmount => NetAmount + TaxAmount;
+
+    // SAP B1 Style Fixed dimensions
+    public long? DepartmentDimensionId { get; set; }
+    public AccountingDimension? DepartmentDimension { get; set; }
+
+    public long? ProjectDimensionId { get; set; }
+    public AccountingDimension? ProjectDimension { get; set; }
 }

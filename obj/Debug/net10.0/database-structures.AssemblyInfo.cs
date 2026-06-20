@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("database-structures")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+494b17028bc42ce3725367f5bccfa2faabb05bbf")]
 [assembly: System.Reflection.AssemblyProductAttribute("database-structures")]
 [assembly: System.Reflection.AssemblyTitleAttribute("database-structures")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
