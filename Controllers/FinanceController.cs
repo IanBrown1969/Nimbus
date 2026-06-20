@@ -416,6 +416,7 @@ public class FinanceController : ApiControllerBase
     {
         var pos = await _context.PurchaseOrders
             .Include(p => p.Supplier)
+            .Include(p => p.CreatedByUser)
             .Include(p => p.Lines)
             .ThenInclude(l => l.StockItem)
             .ToListAsync();
@@ -434,7 +435,8 @@ public class FinanceController : ApiControllerBase
             OrderDate = request.OrderDate,
             CurrencyCode = request.CurrencyCode,
             ExchangeRateToBase = request.ExchangeRateToBase <= 0 ? 1.0m : request.ExchangeRateToBase,
-            Status = PurchaseOrderStatus.Draft
+            Status = PurchaseOrderStatus.Draft,
+            CreatedByUserId = UserId
         };
 
         foreach (var reqLine in request.Lines)

@@ -76,6 +76,7 @@ public class AuthController : ControllerBase
             return Ok(new
             {
                 token = token,
+                userId = user.Id,
                 username = user.Username,
                 role = user.Role.ToString(),
                 tenantId = tenant.Id,
