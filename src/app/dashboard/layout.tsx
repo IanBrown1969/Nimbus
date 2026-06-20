@@ -28,7 +28,7 @@ import {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { token, user, activeLanguage, activeCurrency, plugins, logout, layout } = useApp();
+  const { token, user, activeLanguage, activeCurrency, plugins, logout, layout, permissions } = useApp();
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
@@ -206,10 +206,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       icon: Sliders,
       items: [
         { name: "Fixed Assets", href: "/dashboard/finance/assets" },
-        { name: "Marketplace Add-ons", href: "/dashboard/settings/plugins" }
+        { name: "Marketplace Add-ons", href: "/dashboard/settings/plugins" },
+        { name: "Role Permissions (RBAC)", href: "/dashboard/settings/rbac" }
       ]
     }
   ];
+
+  const allowedModules = modules.filter(mod => {
+    if (user?.role === "CompanyAdmin" || user?.role === "GlobalAdmin") return true;
+    return permissions && permissions.includes(mod.key);
+  });
+
+  const moduleKey = getModuleKeyForPath(pathname);
+  const isAllowed = (() => {
+    if (user?.role === "CompanyAdmin" || user?.role === "GlobalAdmin") return true;
+    if (!moduleKey) return true;
+    if (moduleKey === "financials-sales-purchasing") {
+      return (
+        permissions.includes("financials") ||
+        permissions.includes("sales") ||
+        permissions.includes("purchasing")
+      );
+    }
+    return permissions.includes(moduleKey);
+  })();
 
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
@@ -245,7 +265,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <span>Overview</span>
                   </Link>
 
-                  {modules.map(mod => {
+                  {allowedModules.map(mod => {
                     const ModIcon = mod.icon;
                     return (
                       <div
@@ -354,7 +374,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Page Canvas */}
           <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-8">
-            {children}
+            {isAllowed ? children : <AccessDeniedView path={pathname} />}
           </main>
         </div>
       ) : (
@@ -388,7 +408,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Link>
 
               {/* Module Accoridons */}
-              {modules.map(mod => {
+              {allowedModules.map(mod => {
                 const ModIcon = mod.icon;
                 const isOpen = openModules[mod.key];
 
@@ -481,7 +501,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Main Content Area */}
           <main className="flex-1 flex flex-col overflow-y-auto px-10 py-8">
-            {children}
+            {isAllowed ? children : <AccessDeniedView path={pathname} />}
           </main>
         </>
       )}
@@ -663,4 +683,89 @@ function getTranslatedVal(nameJsonStr: string) {
   } catch {
     return nameJsonStr;
   }
+}
+
+function getModuleKeyForPath(path: string): string | null {
+  if (path === "/dashboard" || path === "/dashboard/") return null;
+
+  if (path.startsWith("/dashboard/settings/rbac")) return "admin";
+  if (path.startsWith("/dashboard/settings/plugins")) return "admin";
+  if (path.startsWith("/dashboard/settings/pricing")) return "inventory";
+
+  if (path === "/dashboard/finance" || path === "/dashboard/finance/") {
+    return "financials-sales-purchasing";
+  }
+  if (path.startsWith("/dashboard/finance/accounts")) return "financials";
+  if (path.startsWith("/dashboard/finance/vat")) return "financials";
+
+  if (path.startsWith("/dashboard/finance/customers")) return "sales";
+  if (path.startsWith("/dashboard/finance/quotes")) return "sales";
+  if (path.startsWith("/dashboard/finance/sales-orders")) return "sales";
+  if (path.startsWith("/dashboard/finance/credit-notes")) return "sales";
+
+  if (path.startsWith("/dashboard/finance/purchase-orders")) return "purchasing";
+  if (path.startsWith("/dashboard/finance/supplier-bills")) return "purchasing";
+
+  if (path.startsWith("/dashboard/finance/bank")) return "banking";
+
+  if (path.startsWith("/dashboard/warehouse")) return "inventory";
+
+  if (path.startsWith("/dashboard/finance/payroll")) return "hr";
+  if (path.startsWith("/dashboard/finance/claims")) return "hr";
+
+  if (path.startsWith("/dashboard/finance/assets")) return "admin";
+
+  return null;
+}
+
+function AccessDeniedView({ path }: { path: string }) {
+  const router = useRouter();
+  
+  const key = getModuleKeyForPath(path);
+  let moduleName = "this area";
+  if (key === "financials") moduleName = "Finance (Financials)";
+  else if (key === "sales") moduleName = "Sales Module";
+  else if (key === "purchasing") moduleName = "Purchasing Module";
+  else if (key === "banking") moduleName = "Banking & Feeds";
+  else if (key === "inventory") moduleName = "Inventory & Warehouse";
+  else if (key === "hr") moduleName = "Human Resources (HR)";
+  else if (key === "admin") moduleName = "System Administration (Admin)";
+  else if (key === "financials-sales-purchasing") moduleName = "Finance / Sales / Purchasing Hub";
+
+  return (
+    <div className="flex flex-col items-center justify-center py-20 px-4">
+      <div className="bg-white border border-slate-200 shadow-2xl rounded-3xl p-10 max-w-md w-full text-center relative overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+        
+        <div className="absolute -top-12 -left-12 w-32 h-32 bg-violet-400/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-rose-400/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center mb-6 shadow-inner animate-pulse">
+          <Lock className="w-8 h-8" />
+        </div>
+
+        <h3 className="text-xl font-extrabold text-slate-800 tracking-tight font-heading">
+          Access Restricted
+        </h3>
+        <p className="text-slate-505 text-xs mt-3 leading-relaxed">
+          Your active role does not have the necessary permissions to access <strong className="text-slate-700 font-bold">{moduleName}</strong>.
+        </p>
+
+        <div className="mt-6 p-4 rounded-2xl bg-slate-50 border border-slate-100 text-left">
+          <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Security Policy</span>
+          <span className="block text-[11px] text-slate-650 leading-normal">
+            Permissions are managed dynamically by your company's System Administrator via the Role-Based Access Control panel.
+          </span>
+        </div>
+
+        <div className="mt-8 flex flex-col gap-3">
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="w-full py-3 px-4 rounded-xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 transition-all cursor-pointer text-xs flex items-center justify-center gap-2 active:scale-98"
+          >
+            Go to Overview Dashboard
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

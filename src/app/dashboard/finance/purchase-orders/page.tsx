@@ -634,15 +634,9 @@ export default function PurchaseOrdersPage() {
                       </td>
                       <td className="py-4 px-4 text-right">
                         {order.status === 0 ? (
-                          isCreator ? (
-                            <span className="text-[10px] text-rose-500 bg-rose-50 border border-rose-200 rounded-lg px-2 py-1 font-semibold flex items-center justify-end w-fit ml-auto gap-1">
-                              <Info className="w-3 h-3" /> Creator Restricted Receipt
-                            </span>
-                          ) : (
-                            <span className="text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1 font-semibold flex items-center justify-end w-fit ml-auto gap-1">
-                              Ready for Goods-In <ArrowRight className="w-3.5 h-3.5" />
-                            </span>
-                          )
+                          <span className="text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1 font-semibold flex items-center justify-end w-fit ml-auto gap-1">
+                            Ready for Goods-In <ArrowRight className="w-3.5 h-3.5" />
+                          </span>
                         ) : (
                           <span className="text-[10px] text-slate-400 font-semibold flex items-center justify-end gap-1.5">
                             <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> Processed

@@ -48,7 +48,7 @@ export default function DispatchShipmentModal({
     setSubmittingShip(true);
     setError(null);
     try {
-      const so = salesOrders.find(s => s.id === shipSOId);
+      const so = salesOrders.find(s => String(s.id) === String(shipSOId));
       if (!so) return;
 
       const payload = {

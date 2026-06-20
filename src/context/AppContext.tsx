@@ -28,6 +28,7 @@ interface AppContextType {
   activeLanguage: string;
   activeCurrency: string;
   plugins: PluginInfo[];
+  permissions: string[];
   login: (token: string, user: UserProfile) => void;
   logout: () => void;
   setLanguage: (lang: string) => void;
@@ -35,6 +36,7 @@ interface AppContextType {
   layout: "sidebar" | "topnav";
   setLayout: (layout: "sidebar" | "topnav") => void;
   refreshPlugins: () => Promise<void>;
+  refreshPermissions: () => Promise<void>;
   togglePlugin: (code: string) => Promise<boolean>;
 }
 
@@ -46,6 +48,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [activeLanguage, setLanguageState] = useState<string>("en-GB");
   const [activeCurrency, setCurrencyState] = useState<string>("GBP");
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [layout, setLayoutState] = useState<"sidebar" | "topnav">("sidebar");
 
   useEffect(() => {
@@ -71,8 +74,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (token) {
       refreshPlugins();
+      refreshPermissions();
     } else {
       setPlugins([]);
+      setPermissions([]);
     }
   }, [token]);
 
@@ -127,6 +132,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const refreshPermissions = async () => {
+    if (!token) return;
+    try {
+      const response = await axios.get("http://localhost:5000/api/rbac/my-permissions", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPermissions(response.data);
+    } catch (error) {
+      console.error("Failed to load permissions:", error);
+    }
+  };
+
   const togglePlugin = async (code: string): Promise<boolean> => {
     if (!token) return false;
     try {
@@ -151,6 +168,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         activeLanguage,
         activeCurrency,
         plugins,
+        permissions,
         layout,
         setLayout,
         login,
@@ -158,6 +176,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setLanguage,
         setCurrency,
         refreshPlugins,
+        refreshPermissions,
         togglePlugin
       }}
     >
