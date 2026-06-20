@@ -433,6 +433,7 @@ public class FinanceController : ApiControllerBase
             OrderNumber = request.OrderNumber,
             SupplierId = request.SupplierId,
             OrderDate = request.OrderDate,
+            ExpectedDeliveryDate = request.ExpectedDeliveryDate,
             CurrencyCode = request.CurrencyCode,
             ExchangeRateToBase = request.ExchangeRateToBase <= 0 ? 1.0m : request.ExchangeRateToBase,
             Status = PurchaseOrderStatus.Draft,
@@ -495,6 +496,7 @@ public class FinanceController : ApiControllerBase
         public string OrderNumber { get; set; } = null!;
         public long SupplierId { get; set; }
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;
+        public DateTime? ExpectedDeliveryDate { get; set; }
         public string CurrencyCode { get; set; } = "GBP";
         public decimal ExchangeRateToBase { get; set; } = 1.0m;
         public PurchaseOrderLineRequest[] Lines { get; set; } = null!;

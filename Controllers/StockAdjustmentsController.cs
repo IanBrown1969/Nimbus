@@ -87,6 +87,10 @@ public class StockAdjustmentsController : ApiControllerBase
 
         // Quantities in StockInventory are in Stocking units of sale
         var qtyInStockUnits = request.QuantityChanged / stockItem.ConversionRatio;
+        if (inventory.Quantity + qtyInStockUnits < 0)
+        {
+            return BadRequest(new { message = $"Cannot adjust stock by {request.QuantityChanged} because physical stock in warehouse cannot go below 0." });
+        }
         inventory.Quantity += qtyInStockUnits;
 
         _context.StockAdjustments.Add(adjustment);

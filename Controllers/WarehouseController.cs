@@ -39,12 +39,64 @@ public class WarehouseController : ApiControllerBase
             .Select(g => new { StockItemId = g.Key, TotalQuantity = g.Sum(x => x.Quantity) })
             .ToDictionaryAsync(x => x.StockItemId, x => x.TotalQuantity);
 
+        // Fetch sales order ordered quantities (excluding Cancelled)
+        var orderedCounts = await _context.SalesOrders
+            .Where(o => o.Status != SalesOrderStatus.Cancelled)
+            .SelectMany(o => o.Lines)
+            .GroupBy(l => l.StockItemId)
+            .Select(g => new { StockItemId = g.Key, TotalOrdered = g.Sum(x => x.Quantity) })
+            .ToDictionaryAsync(x => x.StockItemId, x => x.TotalOrdered);
+
+        // Fetch sales order shipped quantities (excluding Cancelled)
+        var shippedCounts = await _context.Shipments
+            .Include(s => s.SalesOrder)
+            .Where(s => s.SalesOrder.Status != SalesOrderStatus.Cancelled)
+            .SelectMany(s => s.Lines)
+            .GroupBy(l => l.StockItemId)
+            .Select(g => new { StockItemId = g.Key, TotalShipped = g.Sum(x => x.QuantityShipped) })
+            .ToDictionaryAsync(x => x.StockItemId, x => x.TotalShipped);
+
+        // Fetch pending purchase orders for stock items (Draft, Approved, Ordered)
+        var poItems = await _context.PurchaseOrders
+            .Include(o => o.Supplier)
+            .Where(o => o.Status == PurchaseOrderStatus.Draft || o.Status == PurchaseOrderStatus.Approved || o.Status == PurchaseOrderStatus.Ordered)
+            .SelectMany(o => o.Lines.Select(l => new
+            {
+                l.StockItemId,
+                o.OrderNumber,
+                SupplierName = o.Supplier.Name,
+                o.ExpectedDeliveryDate,
+                Status = o.Status.ToString(),
+                l.Quantity,
+                l.ReceivedQuantity
+            }))
+            .ToListAsync();
+
+        var poGroup = poItems
+            .GroupBy(x => x.StockItemId)
+            .ToDictionary(g => g.Key, g => g.Select(x => new
+            {
+                x.OrderNumber,
+                x.SupplierName,
+                x.ExpectedDeliveryDate,
+                x.Status,
+                x.Quantity,
+                x.ReceivedQuantity
+            }).ToList());
+
         var warehouses = await _context.Warehouses.ToListAsync();
         var inventories = await _context.StockInventories.ToListAsync();
 
         var result = stockItems.Select(item =>
         {
             var qty = inventoryCounts.TryGetValue(item.Id, out var count) ? count : 0.0m;
+            var totalOrdered = orderedCounts.TryGetValue(item.Id, out var oQty) ? oQty : 0.0m;
+            var totalShipped = shippedCounts.TryGetValue(item.Id, out var sQty) ? sQty : 0.0m;
+            var sellingDemand = Math.Max(0.0m, totalOrdered - totalShipped);
+            var stockingDemand = item.ConversionRatio > 0 ? sellingDemand / item.ConversionRatio : 0.0m;
+
+            var stockingFreeStock = qty - stockingDemand;
+            var sellingFreeStock = (qty * item.ConversionRatio) - sellingDemand;
             
             var itemInventories = inventories.Where(i => i.StockItemId == item.Id).ToList();
             var warehouseQuantities = warehouses.Select(wh => 
@@ -56,7 +108,9 @@ public class WarehouseController : ApiControllerBase
                     WarehouseCode = wh.Code,
                     WarehouseName = wh.Name,
                     Quantity = whQty,
-                    SellingQuantity = whQty * item.ConversionRatio
+                    SellingQuantity = whQty * item.ConversionRatio,
+                    FreeStockQuantity = whQty - stockingDemand,
+                    FreeStockSellingQuantity = (whQty * item.ConversionRatio) - sellingDemand
                 };
             }).ToList();
 
@@ -71,9 +125,15 @@ public class WarehouseController : ApiControllerBase
                 item.ConversionRatio,
                 item.BasePrice,
                 item.EnableForWebsite,
+                item.AllowBackorder,
                 StockingQuantity = qty,
                 SellingQuantity = qty * item.ConversionRatio,
+                StockingDemand = stockingDemand,
+                SellingDemand = sellingDemand,
+                StockingFreeStock = stockingFreeStock,
+                SellingFreeStock = sellingFreeStock,
                 WarehouseQuantities = warehouseQuantities,
+                PurchaseOrders = poGroup.TryGetValue(item.Id, out var poList) ? (object)poList : new List<object>(),
                 // PIM properties (only returned if PIM is subscribed)
                 RichDescription = hasPim ? item.RichDescriptionJson : null,
                 MediaUrls = hasPim ? item.MediaUrlsJson : null,
@@ -109,7 +169,8 @@ public class WarehouseController : ApiControllerBase
             SellUnitOfSale = request.SellUnitOfSale,
             ConversionRatio = request.ConversionRatio,
             BasePrice = request.BasePrice,
-            EnableForWebsite = request.EnableForWebsite
+            EnableForWebsite = request.EnableForWebsite,
+            AllowBackorder = request.AllowBackorder
         };
 
         if (hasPim)
@@ -239,6 +300,7 @@ public class WarehouseController : ApiControllerBase
         item.ConversionRatio = request.ConversionRatio;
         item.BasePrice = request.BasePrice;
         item.EnableForWebsite = request.EnableForWebsite;
+        item.AllowBackorder = request.AllowBackorder;
 
         if (hasPim)
         {
@@ -307,6 +369,7 @@ public class WarehouseController : ApiControllerBase
         public decimal ConversionRatio { get; set; } = 1.0m;
         public decimal BasePrice { get; set; }
         public bool EnableForWebsite { get; set; }
+        public bool AllowBackorder { get; set; }
         public string? RichDescriptionJson { get; set; }
         public string? MediaUrlsJson { get; set; }
         public string? SpecificationsJson { get; set; }
@@ -333,6 +396,7 @@ public class WarehouseController : ApiControllerBase
         public decimal ConversionRatio { get; set; } = 1.0m;
         public decimal BasePrice { get; set; }
         public bool EnableForWebsite { get; set; }
+        public bool AllowBackorder { get; set; }
         public string? RichDescriptionJson { get; set; }
         public string? MediaUrlsJson { get; set; }
         public string? SpecificationsJson { get; set; }

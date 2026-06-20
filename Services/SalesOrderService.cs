@@ -38,12 +38,50 @@ public class SalesOrderService : ISalesOrderService
 
         var isVatPluginActive = await _context.TenantPlugins.AnyAsync(tp => tp.Plugin.Code == "VAT" && tp.IsActive);
 
+        // Group requested lines by StockItemId to check total requested quantity per item
+        var requestedQuantities = request.Lines
+            .GroupBy(l => l.StockItemId)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
+
         foreach (var reqLine in request.Lines)
         {
             var stockItem = await _context.StockItems.FindAsync(reqLine.StockItemId);
             if (stockItem == null)
             {
                 throw new ArgumentException($"StockItem {reqLine.StockItemId} not found.");
+            }
+
+            // Check free stock constraint if backorders are not allowed
+            if (!stockItem.AllowBackorder)
+            {
+                // Calculate current physical stock in selling units
+                var totalPhysicalStock = await _context.StockInventories
+                    .Where(i => i.StockItemId == reqLine.StockItemId)
+                    .SumAsync(i => i.Quantity) * stockItem.ConversionRatio;
+
+                // Calculate current demand in selling units: Ordered - Shipped (excluding the one we are creating)
+                var totalOrdered = await _context.SalesOrders
+                    .Where(o => o.Status != SalesOrderStatus.Cancelled)
+                    .SelectMany(o => o.Lines)
+                    .Where(l => l.StockItemId == reqLine.StockItemId)
+                    .SumAsync(l => l.Quantity);
+
+                var totalShipped = await _context.Shipments
+                    .Include(s => s.SalesOrder)
+                    .Where(s => s.SalesOrder.Status != SalesOrderStatus.Cancelled)
+                    .SelectMany(s => s.Lines)
+                    .Where(l => l.StockItemId == reqLine.StockItemId)
+                    .SumAsync(l => l.QuantityShipped);
+
+                var currentDemand = Math.Max(0.0m, totalOrdered - totalShipped);
+
+                var freeStock = totalPhysicalStock - currentDemand;
+                var totalRequested = requestedQuantities[reqLine.StockItemId];
+                
+                if (freeStock - totalRequested < 0)
+                {
+                    throw new ArgumentException($"Cannot place order for SKU {stockItem.SKU}. Free stock is {freeStock:0.##} units, but {totalRequested:0.##} units were requested, and backordering is disabled for this product.");
+                }
             }
 
             decimal resolvedTaxRate = reqLine.TaxRate;

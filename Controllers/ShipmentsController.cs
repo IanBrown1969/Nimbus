@@ -100,6 +100,10 @@ public class ShipmentsController : ApiControllerBase
             {
                 var stockItem = await _context.StockItems.FindAsync(reqLine.StockItemId);
                 var qtyInStockUnits = reqLine.QuantityShipped / (stockItem?.ConversionRatio ?? 1.0m);
+                if (inventory.Quantity < qtyInStockUnits)
+                {
+                    return BadRequest(new { message = $"Cannot ship {reqLine.QuantityShipped} units of SKU {stockItem?.SKU ?? reqLine.StockItemId.ToString()}. Physical stock in warehouse cannot go below 0." });
+                }
                 inventory.Quantity -= qtyInStockUnits;
             }
         }
