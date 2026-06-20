@@ -185,6 +185,7 @@ export default function FinancePage() {
         isSupActive={isSupActive || false} 
         suppliers={suppliers} 
         purchaseOrders={purchaseOrders} 
+        onRefresh={fetchFinanceData}
       />
 
       {/* Modals */}
