@@ -60,6 +60,11 @@ public class CustomersController : ApiControllerBase
         var nextRefNum = currentCount + 1;
         var customerRef = $"CUST-{nextRefNum:D4}";
 
+        if (request.CreditContractDays != 30 && request.CreditContractDays != 60 && request.CreditContractDays != 90)
+        {
+            return BadRequest(new { message = "Credit contract term must be either Net 30, 60, or 90 days." });
+        }
+
         var customer = new Customer
         {
             CustomerRef = customerRef,
@@ -69,7 +74,8 @@ public class CustomersController : ApiControllerBase
             Phone = request.Phone,
             DefaultCurrencyCode = request.DefaultCurrencyCode,
             IsActive = true,
-            CountryId = request.CountryId
+            CountryId = request.CountryId,
+            CreditContractDays = request.CreditContractDays
         };
 
         if (request.Addresses != null)
@@ -107,6 +113,11 @@ public class CustomersController : ApiControllerBase
             return NotFound();
         }
 
+        if (request.CreditContractDays != 30 && request.CreditContractDays != 60 && request.CreditContractDays != 90)
+        {
+            return BadRequest(new { message = "Credit contract term must be either Net 30, 60, or 90 days." });
+        }
+
         customer.Name = request.Name;
         customer.CompanyName = request.CompanyName;
         customer.Email = request.Email;
@@ -114,6 +125,7 @@ public class CustomersController : ApiControllerBase
         customer.DefaultCurrencyCode = request.DefaultCurrencyCode;
         customer.CountryId = request.CountryId;
         customer.IsActive = request.IsActive;
+        customer.CreditContractDays = request.CreditContractDays;
 
         await _context.SaveChangesAsync();
         return Ok(customer);
@@ -157,6 +169,7 @@ public class CustomersController : ApiControllerBase
         public string Phone { get; set; } = null!;
         public string DefaultCurrencyCode { get; set; } = "GBP";
         public long? CountryId { get; set; }
+        public int CreditContractDays { get; set; } = 30;
         public List<AddressRequest>? Addresses { get; set; }
     }
 
@@ -195,5 +208,6 @@ public class CustomersController : ApiControllerBase
         public string DefaultCurrencyCode { get; set; } = "GBP";
         public long? CountryId { get; set; }
         public bool IsActive { get; set; }
+        public int CreditContractDays { get; set; } = 30;
     }
 }
