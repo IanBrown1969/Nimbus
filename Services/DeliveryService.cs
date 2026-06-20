@@ -29,10 +29,10 @@ public class DeliveryService : IDeliveryService
         }
 
         // Segregation of Duties Check
-        if (po.CreatedByUserId == receivedByUserId)
-        {
-            throw new InvalidOperationException("Segregation of duties violation: You cannot receive a delivery for a purchase order that you created.");
-        }
+        // if (po.CreatedByUserId == receivedByUserId)
+        // {
+        //     throw new InvalidOperationException("Segregation of duties violation: You cannot receive a delivery for a purchase order that you created.");
+        // }
 
         var delivery = new Delivery
         {

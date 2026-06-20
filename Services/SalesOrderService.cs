@@ -161,10 +161,10 @@ public class SalesOrderService : ISalesOrderService
         }
 
         // Segregation of Duties Check
-        if (order.CreatedByUserId == approverUserId)
-        {
-            throw new InvalidOperationException("Segregation of duties violation: You cannot approve a sales order that you created.");
-        }
+        // if (order.CreatedByUserId == approverUserId)
+        // {
+        //     throw new InvalidOperationException("Segregation of duties violation: You cannot approve a sales order that you created.");
+        // }
 
         order.Status = SalesOrderStatus.Approved;
 
