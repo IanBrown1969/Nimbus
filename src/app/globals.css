@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+progress.progress-bar {
+  -webkit-appearance: none;
+  appearance: none;
+}
+progress.progress-bar::-webkit-progress-bar {
+  background-color: var(--color-slate-200, #e2e8f0);
+  border-radius: 9999px;
+}
+progress.progress-bar::-webkit-progress-value {
+  background-color: #00b7e2;
+  border-radius: 9999px;
+  transition: width 0.15s ease-out;
+}
+progress.progress-bar::-moz-progress-bar {
+  background-color: #00b7e2;
+  border-radius: 9999px;
+}

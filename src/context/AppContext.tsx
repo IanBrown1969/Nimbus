@@ -1,0 +1,153 @@
+"use client";
+
+import React, { createContext, useContext, useState, useEffect } from "react";
+import axios from "axios";
+
+interface UserProfile {
+  username: string;
+  role: string;
+  tenantId: string;
+  tenantName: string;
+  language: string;
+  currency: string;
+}
+
+interface PluginInfo {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+  monthlyPrice: number;
+  isSubscribed: boolean;
+}
+
+interface AppContextType {
+  token: string | null;
+  user: UserProfile | null;
+  activeLanguage: string;
+  activeCurrency: string;
+  plugins: PluginInfo[];
+  login: (token: string, user: UserProfile) => void;
+  logout: () => void;
+  setLanguage: (lang: string) => void;
+  setCurrency: (curr: string) => void;
+  refreshPlugins: () => Promise<void>;
+  togglePlugin: (code: string) => Promise<boolean>;
+}
+
+const AppContext = createContext<AppContextType | undefined>(undefined);
+
+export function AppProvider({ children }: { children: React.ReactNode }) {
+  const [token, setTokenState] = useState<string | null>(null);
+  const [user, setUserState] = useState<UserProfile | null>(null);
+  const [activeLanguage, setLanguageState] = useState<string>("en-GB");
+  const [activeCurrency, setCurrencyState] = useState<string>("GBP");
+  const [plugins, setPlugins] = useState<PluginInfo[]>([]);
+
+  useEffect(() => {
+    // Load from localStorage on mount
+    const savedToken = localStorage.getItem("nimbus_token");
+    const savedUser = localStorage.getItem("nimbus_user");
+    if (savedToken && savedUser) {
+      setTokenState(savedToken);
+      const parsedUser = JSON.parse(savedUser);
+      setUserState(parsedUser);
+      setLanguageState(parsedUser.language || "en-GB");
+      setCurrencyState(parsedUser.currency || "GBP");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (token) {
+      refreshPlugins();
+    } else {
+      setPlugins([]);
+    }
+  }, [token]);
+
+  const login = (newToken: string, newUser: UserProfile) => {
+    setTokenState(newToken);
+    setUserState(newUser);
+    setLanguageState(newUser.language || "en-GB");
+    setCurrencyState(newUser.currency || "GBP");
+    localStorage.setItem("nimbus_token", newToken);
+    localStorage.setItem("nimbus_user", JSON.stringify(newUser));
+  };
+
+  const logout = () => {
+    setTokenState(null);
+    setUserState(null);
+    setPlugins([]);
+    localStorage.removeItem("nimbus_token");
+    localStorage.removeItem("nimbus_user");
+  };
+
+  const setLanguage = (lang: string) => {
+    setLanguageState(lang);
+    if (user) {
+      const updatedUser = { ...user, language: lang };
+      setUserState(updatedUser);
+      localStorage.setItem("nimbus_user", JSON.stringify(updatedUser));
+    }
+  };
+
+  const setCurrency = (curr: string) => {
+    setCurrencyState(curr);
+  };
+
+  const refreshPlugins = async () => {
+    if (!token) return;
+    try {
+      const response = await axios.get("http://localhost:5000/api/plugins", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPlugins(response.data);
+    } catch (error) {
+      console.error("Failed to load plugins:", error);
+    }
+  };
+
+  const togglePlugin = async (code: string): Promise<boolean> => {
+    if (!token) return false;
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/api/plugins/toggle",
+        { pluginCode: code },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      await refreshPlugins();
+      return response.data.isSubscribed;
+    } catch (error) {
+      console.error("Failed to toggle plugin:", error);
+      return false;
+    }
+  };
+
+  return (
+    <AppContext.Provider
+      value={{
+        token,
+        user,
+        activeLanguage,
+        activeCurrency,
+        plugins,
+        login,
+        logout,
+        setLanguage,
+        setCurrency,
+        refreshPlugins,
+        togglePlugin
+      }}
+    >
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+export function useApp() {
+  const context = useContext(AppContext);
+  if (context === undefined) {
+    throw new Error("useApp must be used within an AppProvider");
+  }
+  return context;
+}
