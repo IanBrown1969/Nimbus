@@ -39,9 +39,27 @@ public class WarehouseController : ApiControllerBase
             .Select(g => new { StockItemId = g.Key, TotalQuantity = g.Sum(x => x.Quantity) })
             .ToDictionaryAsync(x => x.StockItemId, x => x.TotalQuantity);
 
+        var warehouses = await _context.Warehouses.ToListAsync();
+        var inventories = await _context.StockInventories.ToListAsync();
+
         var result = stockItems.Select(item =>
         {
             var qty = inventoryCounts.TryGetValue(item.Id, out var count) ? count : 0.0m;
+            
+            var itemInventories = inventories.Where(i => i.StockItemId == item.Id).ToList();
+            var warehouseQuantities = warehouses.Select(wh => 
+            {
+                var whQty = itemInventories.Where(i => i.WarehouseId == wh.Id).Sum(i => i.Quantity);
+                return new 
+                {
+                    WarehouseId = wh.Id,
+                    WarehouseCode = wh.Code,
+                    WarehouseName = wh.Name,
+                    Quantity = whQty,
+                    SellingQuantity = whQty * item.ConversionRatio
+                };
+            }).ToList();
+
             return new
             {
                 item.Id,
@@ -55,6 +73,7 @@ public class WarehouseController : ApiControllerBase
                 item.EnableForWebsite,
                 StockingQuantity = qty,
                 SellingQuantity = qty * item.ConversionRatio,
+                WarehouseQuantities = warehouseQuantities,
                 // PIM properties (only returned if PIM is subscribed)
                 RichDescription = hasPim ? item.RichDescriptionJson : null,
                 MediaUrls = hasPim ? item.MediaUrlsJson : null,
@@ -63,6 +82,15 @@ public class WarehouseController : ApiControllerBase
         });
 
         return Ok(result);
+    }
+
+    // 1.5. Warehouse Listing
+    [HttpGet("warehouses")]
+    [Authorize(Roles = "Warehouse,Sales,CompanyAdmin,GlobalAdmin")]
+    public async Task<IActionResult> GetWarehouses()
+    {
+        var warehouses = await _context.Warehouses.ToListAsync();
+        return Ok(warehouses);
     }
 
     // 2. Add Stock Item (PIM checks are done internally to decide if specs can be updated)
@@ -94,13 +122,28 @@ public class WarehouseController : ApiControllerBase
         _context.StockItems.Add(stockItem);
         await _context.SaveChangesAsync();
 
-        // Initialize empty inventory for it
-        var inventory = new StockInventory
+        // Initialize empty inventory for it in all warehouses
+        var warehouses = await _context.Warehouses.ToListAsync();
+        if (warehouses.Any())
         {
-            StockItemId = stockItem.Id,
-            Quantity = 0.0m
-        };
-        _context.StockInventories.Add(inventory);
+            foreach (var wh in warehouses)
+            {
+                _context.StockInventories.Add(new StockInventory
+                {
+                    StockItemId = stockItem.Id,
+                    WarehouseId = wh.Id,
+                    Quantity = 0.0m
+                });
+            }
+        }
+        else
+        {
+            _context.StockInventories.Add(new StockInventory
+            {
+                StockItemId = stockItem.Id,
+                Quantity = 0.0m
+            });
+        }
         await _context.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetStock), new { id = stockItem.Id }, stockItem);

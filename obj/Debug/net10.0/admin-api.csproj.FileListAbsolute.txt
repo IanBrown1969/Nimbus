@@ -80,3 +80,4 @@ C:\Users\Ian.Brown\Documents\Projects\nimbus_erp\admin-api\bin\Debug\net10.0\run
 C:\Users\Ian.Brown\Documents\Projects\nimbus_erp\admin-api\bin\Debug\net10.0\Azure.Storage.Blobs.dll
 C:\Users\Ian.Brown\Documents\Projects\nimbus_erp\admin-api\bin\Debug\net10.0\Azure.Storage.Common.dll
 C:\Users\Ian.Brown\Documents\Projects\nimbus_erp\admin-api\bin\Debug\net10.0\System.IO.Hashing.dll
+C:\Users\Ian.Brown\Documents\Projects\nimbus_erp\admin-api\obj\Debug\net10.0\admin-api.sourcelink.json

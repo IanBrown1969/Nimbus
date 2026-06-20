@@ -61,6 +61,15 @@ builder.Services.AddScoped<ITenantProvider, TenantProvider>();
 // Register ITenantConnectionService
 builder.Services.AddScoped<ITenantConnectionService, TenantConnectionService>();
 
+// Register IPeriodService
+builder.Services.AddScoped<IPeriodService, PeriodService>();
+
+// Register ISalesOrderService
+builder.Services.AddScoped<ISalesOrderService, SalesOrderService>();
+
+// Register IDeliveryService
+builder.Services.AddScoped<IDeliveryService, DeliveryService>();
+
 // Register SQL Server DB Context
 builder.Services.AddDbContext<NimbusDbContext>((serviceProvider, options) =>
 {

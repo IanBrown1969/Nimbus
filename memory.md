@@ -11,13 +11,14 @@
 ### Completed
 - `[x]` Scaffolding the `admin-api` Web API.
 - `[x]` Creating API standards (`agent.md`).
+- `[x]` Adding project reference to `database-structures.csproj`.
+- `[x]` Setting up JWT Bearer authentication.
+- `[x]` Configuring `TenantAndLocaleMiddleware` for multi-tenant routing and locale mapping.
+- `[x]` Developing multi-tenant storage and db connection services (`TenantProvider`, `TenantConnectionService`).
+- `[x]` Implementing Controllers (`WarehouseController`, `FinanceController`, `PluginsController`, `AuthController`).
 
 ### In Progress
-- `[ ]` Adding project reference to `database-structures.csproj`.
-- `[ ]` Setting up JWT Bearer authentication.
-- `[ ]` Configuring `TenantAndLocaleMiddleware`.
-- `[ ]` Developing Services: `TenantProvider`, `WarehouseService`, `FinanceService`.
-- `[ ]` Implementing Controllers: `WarehouseController`, `FinanceController`, `PluginsController`.
+- `[ ]` Adding unit test suites for edge cases in VAT calculations.
 
 ## Planned API Route Structure
 

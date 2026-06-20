@@ -67,11 +67,31 @@ public class FinanceController : ApiControllerBase
             decimal resolvedTaxRate = reqLine.TaxRate;
             if (isVatPluginActive)
             {
-                var contact = await _context.Contacts.Include(c => c.Country).FirstOrDefaultAsync(c => c.Name == request.CustomerName || c.CompanyName == request.CustomerName);
-                if (contact != null && contact.CountryId.HasValue && stockItem.TaxClassId.HasValue)
+                long? countryId = null;
+                var customer = await _context.Customers
+                    .Include(c => c.Country)
+                    .FirstOrDefaultAsync(c => c.Name == request.CustomerName || c.CompanyName == request.CustomerName);
+                
+                if (customer != null && customer.CountryId.HasValue)
+                {
+                    countryId = customer.CountryId.Value;
+                }
+                else
+                {
+                    var contact = await _context.Contacts
+                        .Include(c => c.Country)
+                        .FirstOrDefaultAsync(c => c.Name == request.CustomerName || c.CompanyName == request.CustomerName);
+                    
+                    if (contact != null && contact.CountryId.HasValue)
+                    {
+                        countryId = contact.CountryId.Value;
+                    }
+                }
+
+                if (countryId.HasValue && stockItem.TaxClassId.HasValue)
                 {
                     var taxRateRule = await _context.TaxRates
-                        .FirstOrDefaultAsync(r => r.CountryId == contact.CountryId.Value && r.TaxClassId == stockItem.TaxClassId.Value);
+                        .FirstOrDefaultAsync(r => r.CountryId == countryId.Value && r.TaxClassId == stockItem.TaxClassId.Value);
                     if (taxRateRule != null)
                     {
                         resolvedTaxRate = taxRateRule.Rate;
