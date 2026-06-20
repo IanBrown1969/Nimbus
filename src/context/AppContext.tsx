@@ -31,6 +31,8 @@ interface AppContextType {
   logout: () => void;
   setLanguage: (lang: string) => void;
   setCurrency: (curr: string) => void;
+  layout: "sidebar" | "topnav";
+  setLayout: (layout: "sidebar" | "topnav") => void;
   refreshPlugins: () => Promise<void>;
   togglePlugin: (code: string) => Promise<boolean>;
 }
@@ -43,6 +45,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [activeLanguage, setLanguageState] = useState<string>("en-GB");
   const [activeCurrency, setCurrencyState] = useState<string>("GBP");
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
+  const [layout, setLayoutState] = useState<"sidebar" | "topnav">("sidebar");
 
   useEffect(() => {
     // Load from localStorage on mount
@@ -57,6 +60,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUserState(parsedUser);
       setLanguageState(parsedUser.language || "en-GB");
       setCurrencyState(parsedUser.currency || "GBP");
+    }
+    const savedLayout = localStorage.getItem("nimbus_layout") as "sidebar" | "topnav" | null;
+    if (savedLayout && ["sidebar", "topnav"].includes(savedLayout)) {
+      setLayoutState(savedLayout);
     }
   }, []);
 
@@ -102,6 +109,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCurrencyState(curr);
   };
 
+  const setLayout = (newLayout: "sidebar" | "topnav") => {
+    setLayoutState(newLayout);
+    localStorage.setItem("nimbus_layout", newLayout);
+  };
+
   const refreshPlugins = async () => {
     if (!token) return;
     try {
@@ -138,6 +150,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         activeLanguage,
         activeCurrency,
         plugins,
+        layout,
+        setLayout,
         login,
         logout,
         setLanguage,

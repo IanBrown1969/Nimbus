@@ -5,7 +5,7 @@ import { useApp } from "@/context/AppContext";
 import { Puzzle, ShieldAlert, BadgeCheck, Loader2, ShieldCheck } from "lucide-react";
 
 export default function PluginsSettingsPage() {
-  const { plugins, togglePlugin, user } = useApp();
+  const { plugins, togglePlugin, user, layout, setLayout } = useApp();
   const [updatingCode, setUpdatingCode] = useState<string | null>(null);
 
   const handleToggle = async (code: string) => {
@@ -57,6 +57,84 @@ export default function PluginsSettingsPage() {
           </div>
         </div>
       )}
+
+      {/* User Interface Layout Selection */}
+      <div className="space-y-4 pt-4 border-t border-slate-200">
+        <div>
+          <h3 className="text-lg font-bold text-slate-900">Admin Dashboard Layout</h3>
+          <p className="text-xs text-slate-500 mt-1">Choose your preferred navigation style. Changes are applied instantly and persisted locally.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Classic Sidebar Card */}
+          <button
+            onClick={() => setLayout("sidebar")}
+            className={`p-5 rounded-2xl border text-left flex items-start gap-4 transition-all bg-white cursor-pointer select-none ${
+              layout === "sidebar"
+                ? "border-violet-300 ring-1 ring-violet-100 shadow-md shadow-violet-100/50"
+                : "border-slate-200 hover:border-slate-350"
+            }`}
+          >
+            {/* Visual Mini Preview representation */}
+            <div className="w-20 h-16 bg-slate-50 border border-slate-200 rounded-lg flex shrink-0 overflow-hidden">
+              <div className="w-6 bg-slate-200 border-r border-slate-300 flex flex-col gap-1 p-1">
+                <div className="w-full h-2 bg-slate-400 rounded-sm"></div>
+                <div className="w-full h-1 bg-slate-305 rounded-sm"></div>
+                <div className="w-full h-1 bg-slate-305 rounded-sm"></div>
+              </div>
+              <div className="flex-1 p-1.5 space-y-1">
+                <div className="w-2/3 h-2 bg-slate-300 rounded-sm"></div>
+                <div className="w-full h-5 bg-slate-100 border border-slate-200 rounded-sm"></div>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                Classic Sidebar
+                {layout === "sidebar" && (
+                  <span className="text-[8px] font-extrabold bg-violet-100 text-violet-750 px-1.5 py-0.5 rounded-full uppercase">Active</span>
+                )}
+              </h4>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                Traditional vertical navigation layout with collapsible accordions, localization indicators, and drilldowns at your fingertips.
+              </p>
+            </div>
+          </button>
+
+          {/* Modern Top Navigation Card */}
+          <button
+            onClick={() => setLayout("topnav")}
+            className={`p-5 rounded-2xl border text-left flex items-start gap-4 transition-all bg-white cursor-pointer select-none ${
+              layout === "topnav"
+                ? "border-violet-300 ring-1 ring-violet-100 shadow-md shadow-violet-100/50"
+                : "border-slate-200 hover:border-slate-350"
+            }`}
+          >
+            {/* Visual Mini Preview representation */}
+            <div className="w-20 h-16 bg-slate-50 border border-slate-200 rounded-lg flex flex-col shrink-0 overflow-hidden">
+              <div className="h-4 bg-slate-200 border-b border-slate-300 flex items-center gap-1.5 px-1.5">
+                <div className="w-3 h-3 rounded-full bg-slate-400"></div>
+                <div className="w-6 h-1.5 bg-slate-305 rounded-sm"></div>
+                <div className="w-6 h-1.5 bg-slate-305 rounded-sm"></div>
+              </div>
+              <div className="flex-1 p-1.5">
+                <div className="w-2/3 h-2 bg-slate-300 rounded-sm mb-1"></div>
+                <div className="w-full h-4 bg-slate-100 border border-slate-200 rounded-sm"></div>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                Modern Top Navigation
+                {layout === "topnav" && (
+                  <span className="text-[8px] font-extrabold bg-violet-100 text-violet-750 px-1.5 py-0.5 rounded-full uppercase">Active</span>
+                )}
+              </h4>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                Clean, full-width canvas workspace with a blur-effect sticky top header and dropdown menus. Maximizes visual data area.
+              </p>
+            </div>
+          </button>
+        </div>
+      </div>
 
       {/* Access alert if user is not admin */}
       {user?.role !== "CompanyAdmin" && user?.role !== "GlobalAdmin" && (

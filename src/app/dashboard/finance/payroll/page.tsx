@@ -115,16 +115,16 @@ export default function PayrollPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <span className="text-xs font-bold text-violet-400 uppercase tracking-widest font-heading">Finance</span>
-          <h2 className="text-3xl font-bold font-heading text-slate-100">Payroll Cycles</h2>
-          <p className="text-slate-400 text-sm mt-1">Manage corporate employees and calculate income tax deductions on wage payments.</p>
+          <span className="text-xs font-bold text-violet-650 uppercase tracking-widest font-heading">Finance</span>
+          <h2 className="text-3xl font-bold font-heading text-slate-900">Payroll Cycles</h2>
+          <p className="text-slate-655 text-sm mt-1">Manage corporate employees and calculate income tax deductions on wage payments.</p>
         </div>
         
         {(user?.role === "CompanyAdmin" || user?.role === "Accounts" || user?.role === "GlobalAdmin") && (
           <div className="flex gap-3">
             <button
               onClick={() => setShowEmpModal(true)}
-              className="py-2.5 px-4 rounded-xl font-semibold border border-slate-800 hover:border-slate-700 text-slate-300 text-xs flex items-center gap-2 transition-all active:scale-95"
+              className="py-2.5 px-4 rounded-xl font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Add Employee
             </button>
@@ -147,9 +147,9 @@ export default function PayrollPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         
         {/* Employees Panel */}
-        <div className="md:col-span-1 p-6 rounded-2xl border border-slate-900 bg-slate-900/30 backdrop-blur-sm space-y-4">
-          <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-            <Users className="w-5 h-5 text-cyan-400" />
+        <div className="md:col-span-1 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-4">
+          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <Users className="w-5 h-5 text-cyan-600" />
             Employees Registry
           </h3>
 
@@ -158,14 +158,14 @@ export default function PayrollPage() {
               <div className="text-slate-500 text-xs text-center py-6">No employees registered.</div>
             ) : (
               employees.map(emp => (
-                <div key={emp.id} className="p-3 bg-slate-950/80 border border-slate-800 rounded-xl text-xs space-y-1">
+                <div key={emp.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
                   <div className="flex justify-between items-center">
-                    <strong className="text-slate-200">{emp.firstName} {emp.lastName}</strong>
+                    <strong className="text-slate-800">{emp.firstName} {emp.lastName}</strong>
                     <span className="text-[10px] text-slate-500 font-semibold">{emp.taxCode}</span>
                   </div>
-                  <div className="flex justify-between text-[10px] text-slate-400">
+                  <div className="flex justify-between text-[10px] text-slate-600">
                     <span>NI: {emp.nationalInsuranceNumber}</span>
-                    <span className="font-bold text-cyan-400">{formatMoney(emp.monthlySalary)}/mo</span>
+                    <span className="font-bold text-cyan-700">{formatMoney(emp.monthlySalary)}/mo</span>
                   </div>
                 </div>
               ))
@@ -174,9 +174,9 @@ export default function PayrollPage() {
         </div>
 
         {/* Pay Runs Panel */}
-        <div className="md:col-span-2 p-6 rounded-2xl border border-slate-900 bg-slate-900/30 backdrop-blur-sm space-y-4">
-          <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-            <Banknote className="w-5 h-5 text-violet-400" />
+        <div className="md:col-span-2 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-4">
+          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <Banknote className="w-5 h-5 text-violet-600" />
             Monthly Wages Runs
           </h3>
 
@@ -185,10 +185,10 @@ export default function PayrollPage() {
               <div className="text-slate-500 text-xs text-center py-6">No pay runs generated.</div>
             ) : (
               payRuns.map(run => (
-                <div key={run.id} className="p-4 bg-slate-950/85 border border-slate-800 rounded-xl space-y-3">
+                <div key={run.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                   <div className="flex justify-between items-center text-xs">
                     <div>
-                      <span className="font-bold text-slate-200 block">
+                      <span className="font-bold text-slate-800 block">
                         Period: {new Date(run.periodStart).toLocaleDateString()} to {new Date(run.periodEnd).toLocaleDateString()}
                       </span>
                       {run.processedDate && (
@@ -199,12 +199,12 @@ export default function PayrollPage() {
                       <button
                         onClick={() => handleProcessPayRun(run.id)}
                         disabled={processingId === run.id}
-                        className="py-1.5 px-3 rounded bg-violet-600 hover:bg-violet-500 text-white font-semibold text-[10px] flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                        className="py-1.5 px-3 rounded bg-violet-600 hover:bg-violet-500 text-white font-semibold text-[10px] flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
                       >
                         <Play className="w-3 h-3" /> Process Pay Run
                       </button>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400 px-2 py-0.5 rounded bg-emerald-950/20 border border-emerald-900/40 uppercase">
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-700 px-2 py-0.5 rounded bg-emerald-50 border border-emerald-250 uppercase">
                         <CheckCircle className="w-3 h-3" /> Processed & GL Posted
                       </span>
                     )}
@@ -212,13 +212,13 @@ export default function PayrollPage() {
 
                   {/* Slips Details */}
                   {run.paySlips && run.paySlips.length > 0 && (
-                    <div className="p-2.5 bg-slate-900/50 rounded-lg border border-slate-950 space-y-1.5">
+                    <div className="p-2.5 bg-white rounded-lg border border-slate-250 space-y-1.5">
                       {run.paySlips.map((slip: any) => (
-                        <div key={slip.id} className="flex justify-between items-center text-[10px] font-mono text-slate-400">
-                          <span className="w-1/4 truncate text-slate-300">{slip.employee?.firstName} {slip.employee?.lastName}</span>
+                        <div key={slip.id} className="flex justify-between items-center text-[10px] font-mono text-slate-600 font-medium">
+                          <span className="w-1/4 truncate text-slate-800 font-semibold">{slip.employee?.firstName} {slip.employee?.lastName}</span>
                           <span className="w-1/4 text-right">Gross: {formatMoney(slip.grossPay)}</span>
-                          <span className="w-1/4 text-right text-rose-500">Tax/NI: -{formatMoney(slip.taxDeduction + slip.nationalInsuranceDeduction)}</span>
-                          <span className="w-1/4 text-right text-emerald-400 font-bold">Net: {formatMoney(slip.netPay)}</span>
+                          <span className="w-1/4 text-right text-rose-600">Tax/NI: -{formatMoney(slip.taxDeduction + slip.nationalInsuranceDeduction)}</span>
+                          <span className="w-1/4 text-right text-emerald-700 font-bold">Net: {formatMoney(slip.netPay)}</span>
                         </div>
                       ))}
                     </div>
@@ -233,55 +233,55 @@ export default function PayrollPage() {
 
       {/* Employee Modal */}
       {showEmpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4">
-          <div className="w-full max-w-sm p-6 bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl space-y-5">
-            <h3 className="text-base font-bold text-slate-100">Register Employee</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm p-6 bg-white border border-slate-200 rounded-2xl shadow-2xl space-y-5">
+            <h3 className="text-base font-bold text-slate-900">Register Employee</h3>
             <form onSubmit={handleCreateEmployee} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">First Name</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500">First Name</label>
                   <input
                     type="text"
                     required
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="David"
-                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:border-violet-500 text-slate-200"
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">Last Name</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Last Name</label>
                   <input
                     type="text"
                     required
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="Miller"
-                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:border-violet-500 text-slate-200"
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[10px] font-bold uppercase text-slate-400">National Insurance Number</label>
+                <label className="text-[10px] font-bold uppercase text-slate-500">National Insurance Number</label>
                 <input
                   type="text"
                   required
                   value={niNumber}
                   onChange={(e) => setNiNumber(e.target.value)}
                   placeholder="JW987654A"
-                  className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:border-violet-500 text-slate-200"
+                  className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-bold uppercase text-slate-400">Monthly Salary (£)</label>
+                <label className="text-[10px] font-bold uppercase text-slate-500">Monthly Salary (£)</label>
                 <input
                   type="number"
                   required
                   value={salary}
                   onChange={(e) => setSalary(Number(e.target.value))}
-                  className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:border-violet-500 text-slate-200"
+                  className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
                 />
               </div>
 
@@ -289,13 +289,13 @@ export default function PayrollPage() {
                 <button
                   type="button"
                   onClick={() => setShowEmpModal(false)}
-                  className="px-4 py-2 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-semibold rounded-lg"
+                  className="px-4 py-2 border border-slate-200 text-slate-500 hover:text-slate-800 text-xs font-semibold rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg"
+                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg cursor-pointer"
                 >
                   Create Employee Record
                 </button>
@@ -307,29 +307,29 @@ export default function PayrollPage() {
 
       {/* PayRun Modal */}
       {showRunModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4">
-          <div className="w-full max-w-sm p-6 bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl space-y-5">
-            <h3 className="text-base font-bold text-slate-100">Schedule Pay Run Period</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm p-6 bg-white border border-slate-200 rounded-2xl shadow-2xl space-y-5">
+            <h3 className="text-base font-bold text-slate-900">Schedule Pay Run Period</h3>
             <form onSubmit={handleCreatePayRun} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">Start Date</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Start Date</label>
                   <input
                     type="date"
                     required
                     value={start}
                     onChange={(e) => setStart(e.target.value)}
-                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none"
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white text-slate-800"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">End Date</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500">End Date</label>
                   <input
                     type="date"
                     required
                     value={end}
                     onChange={(e) => setEnd(e.target.value)}
-                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none"
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white text-slate-800"
                   />
                 </div>
               </div>
@@ -338,13 +338,13 @@ export default function PayrollPage() {
                 <button
                   type="button"
                   onClick={() => setShowRunModal(false)}
-                  className="px-4 py-2 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-semibold rounded-lg"
+                  className="px-4 py-2 border border-slate-200 text-slate-500 hover:text-slate-800 text-xs font-semibold rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg"
+                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg cursor-pointer"
                 >
                   Initialize Payrun Period
                 </button>

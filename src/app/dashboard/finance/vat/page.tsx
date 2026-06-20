@@ -94,9 +94,9 @@ export default function VatPage() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <span className="text-xs font-bold text-violet-400 uppercase tracking-widest font-heading">Finance</span>
-        <h2 className="text-3xl font-bold font-heading text-slate-100">UK VAT Returns</h2>
-        <p className="text-slate-400 text-sm mt-1">Submit quarterly HMRC returns using live double-entry ledger calculations.</p>
+        <span className="text-xs font-bold text-violet-650 uppercase tracking-widest font-heading">Finance</span>
+        <h2 className="text-3xl font-bold font-heading text-slate-900">UK VAT Returns</h2>
+        <p className="text-slate-655 text-sm mt-1">Submit quarterly HMRC returns using live double-entry ledger calculations.</p>
       </div>
 
       {error && (
@@ -108,29 +108,29 @@ export default function VatPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         
         {/* Box Calculation Console */}
-        <div className="md:col-span-2 p-6 rounded-2xl border border-slate-900 bg-slate-900/30 backdrop-blur-sm space-y-5">
-          <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-            <Percent className="w-5 h-5 text-violet-400" />
+        <div className="md:col-span-2 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-5">
+          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <Percent className="w-5 h-5 text-violet-600" />
             HMRC VAT Return Calculator (Quarterly)
           </h3>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-bold uppercase text-slate-400">Period Start</label>
+              <label className="text-[10px] font-bold uppercase text-slate-500">Period Start</label>
               <input
                 type="date"
                 value={start}
                 onChange={(e) => setStart(e.target.value)}
-                className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:border-violet-500 text-slate-200"
+                className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-800"
               />
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase text-slate-400">Period End</label>
+              <label className="text-[10px] font-bold uppercase text-slate-500">Period End</label>
               <input
                 type="date"
                 value={end}
                 onChange={(e) => setEnd(e.target.value)}
-                className="w-full mt-1 text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:border-violet-500 text-slate-200"
+                className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-800"
               />
             </div>
           </div>
@@ -145,45 +145,45 @@ export default function VatPage() {
 
           {/* Dynamic Boxes output */}
           {boxData && (
-            <div className="pt-4 border-t border-slate-800 space-y-4 font-mono text-xs">
-              <h4 className="font-sans font-bold text-slate-300 flex items-center gap-1.5 text-xs">
-                <Scale className="w-4 h-4 text-cyan-400" /> Calculated HMRC return sheet:
+            <div className="pt-4 border-t border-slate-200 space-y-4 font-mono text-xs">
+              <h4 className="font-sans font-bold text-slate-800 flex items-center gap-1.5 text-xs">
+                <Scale className="w-4 h-4 text-cyan-600" /> Calculated HMRC return sheet:
               </h4>
 
-              <div className="space-y-2 bg-slate-950/80 p-4 rounded-xl border border-slate-850">
-                <div className="flex justify-between border-b border-slate-900 pb-1.5">
-                  <span className="text-slate-400">Box 1: VAT due on sales & outputs</span>
-                  <strong className="text-slate-200">{formatMoney(boxData.box1)}</strong>
+              <div className="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                  <span className="text-slate-500">Box 1: VAT due on sales & outputs</span>
+                  <strong className="text-slate-800">{formatMoney(boxData.box1)}</strong>
                 </div>
-                <div className="flex justify-between border-b border-slate-900 pb-1.5">
-                  <span className="text-slate-400">Box 2: VAT due on EC acquisitions</span>
-                  <strong className="text-slate-200">{formatMoney(boxData.box2)}</strong>
+                <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                  <span className="text-slate-500">Box 2: VAT due on EC acquisitions</span>
+                  <strong className="text-slate-800">{formatMoney(boxData.box2)}</strong>
                 </div>
-                <div className="flex justify-between border-b border-slate-900 pb-1.5 text-violet-400">
+                <div className="flex justify-between border-b border-slate-200 pb-1.5 text-violet-750">
                   <span>Box 3: Total VAT due (Box 1 + 2)</span>
                   <strong className="font-bold">{formatMoney(boxData.box3)}</strong>
                 </div>
-                <div className="flex justify-between border-b border-slate-900 pb-1.5">
-                  <span className="text-slate-400">Box 4: VAT reclaimed on purchases</span>
-                  <strong className="text-slate-200">{formatMoney(boxData.box4)}</strong>
+                <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                  <span className="text-slate-500">Box 4: VAT reclaimed on purchases</span>
+                  <strong className="text-slate-800">{formatMoney(boxData.box4)}</strong>
                 </div>
-                <div className="flex justify-between border-b border-slate-900 pb-1.5 text-emerald-400">
+                <div className="flex justify-between border-b border-slate-200 pb-1.5 text-emerald-700">
                   <span>Box 5: Net VAT Pay/Reclaim</span>
                   <strong className="font-bold">{formatMoney(boxData.box5)}</strong>
                 </div>
-                <div className="flex justify-between border-b border-slate-900 pb-1.5">
-                  <span className="text-slate-400">Box 6: Total Net Sales (ex VAT)</span>
-                  <strong className="text-slate-200">{formatMoney(boxData.box6)}</strong>
+                <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                  <span className="text-slate-500">Box 6: Total Net Sales (ex VAT)</span>
+                  <strong className="text-slate-800">{formatMoney(boxData.box6)}</strong>
                 </div>
                 <div className="flex justify-between pb-0.5">
-                  <span className="text-slate-400">Box 7: Total Net Purchases (ex VAT)</span>
-                  <strong className="text-slate-200">{formatMoney(boxData.box7)}</strong>
+                  <span className="text-slate-500">Box 7: Total Net Purchases (ex VAT)</span>
+                  <strong className="text-slate-800">{formatMoney(boxData.box7)}</strong>
                 </div>
               </div>
 
-              <div className="p-3 bg-cyan-950/20 border border-cyan-900/30 rounded-lg flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-cyan-400 shrink-0" />
-                <p className="text-[10px] text-slate-400 font-sans leading-relaxed">
+              <div className="p-3 bg-cyan-50 border border-cyan-200 rounded-lg flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-cyan-600 shrink-0" />
+                <p className="text-[10px] text-slate-655 font-sans leading-relaxed">
                   Verify these calculations. Submitting this return files records to HMRC under the Making Tax Digital (MTD) mandate.
                 </p>
               </div>
@@ -200,9 +200,9 @@ export default function VatPage() {
         </div>
 
         {/* VAT History */}
-        <div className="md:col-span-1 p-6 rounded-2xl border border-slate-900 bg-slate-900/30 backdrop-blur-sm space-y-4">
-          <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-cyan-400" />
+        <div className="md:col-span-1 p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-4">
+          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-cyan-600" />
             Filed History
           </h3>
 
@@ -211,18 +211,18 @@ export default function VatPage() {
               <div className="text-slate-500 text-xs italic text-center py-6">No historical filings recorded.</div>
             ) : (
               returnsHistory.map(item => (
-                <div key={item.id} className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-xs space-y-1">
+                <div key={item.id} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-slate-200">
+                    <span className="font-bold text-slate-800">
                       Q Ending {new Date(item.periodEnd).toLocaleDateString()}
                     </span>
-                    <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-400 bg-emerald-950/10 border border-emerald-900/30 px-1.5 py-0.5 rounded uppercase">
+                    <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-250 px-1.5 py-0.5 rounded uppercase">
                       <CheckCircle className="w-2.5 h-2.5" /> Filed
                     </span>
                   </div>
-                  <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                  <div className="flex justify-between text-[10px] text-slate-600 font-mono">
                     <span>Liability Pay:</span>
-                    <span className="font-bold text-rose-400">{formatMoney(item.box5)}</span>
+                    <span className="font-bold text-rose-650">{formatMoney(item.box5)}</span>
                   </div>
                 </div>
               ))
