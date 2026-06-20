@@ -23,6 +23,7 @@ public long TenantId { get; set; }
 
     public decimal BasePrice { get; set; } // price in base currency
     public bool EnableForWebsite { get; set; } = false;
+    public bool AllowBackorder { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Advanced PIM characteristics (Restricted by PIM subscription API filters)

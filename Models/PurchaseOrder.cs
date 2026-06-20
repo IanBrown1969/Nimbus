@@ -23,6 +23,7 @@ public long TenantId { get; set; }
 
     public string OrderNumber { get; set; } = null!; // e.g. PO-2026-0001
     public DateTime OrderDate { get; set; } = DateTime.UtcNow;
+    public DateTime? ExpectedDeliveryDate { get; set; }
     
     // Multi-currency tracking
     public string CurrencyCode { get; set; } = "GBP";

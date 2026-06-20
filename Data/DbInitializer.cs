@@ -145,6 +145,32 @@ public static class DbInitializer
         // Ensure tenant database exists
         context.Database.EnsureCreated();
 
+        // Check and migrate table schema for AllowBackorder if needed
+        if (context.Database.ProviderName == "Microsoft.EntityFrameworkCore.SqlServer")
+        {
+            context.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (
+                    SELECT * FROM sys.columns 
+                    WHERE object_id = OBJECT_ID(N'[dbo].[StockItems]') 
+                    AND name = N'AllowBackorder'
+                )
+                BEGIN
+                    ALTER TABLE [dbo].[StockItems] ADD [AllowBackorder] BIT NOT NULL DEFAULT 0;
+                END
+            ");
+
+            context.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (
+                    SELECT * FROM sys.columns 
+                    WHERE object_id = OBJECT_ID(N'[dbo].[PurchaseOrders]') 
+                    AND name = N'ExpectedDeliveryDate'
+                )
+                BEGIN
+                    ALTER TABLE [dbo].[PurchaseOrders] ADD [ExpectedDeliveryDate] DATETIME2 NULL;
+                END
+            ");
+        }
+
         // 1. Seed local Tenant copy
         if (!context.Tenants.Any(t => t.Id == tenant.Id))
         {
@@ -370,6 +396,7 @@ public static class DbInitializer
                 ConversionRatio = 400.0m,
                 BasePrice = 320.00m,
                 EnableForWebsite = true,
+                AllowBackorder = true,
                 RichDescriptionJson = "{\"en-GB\": \"<p>Acme premium clay bricks are baked at 1000°C for extreme durability.</p>\"}",
                 MediaUrlsJson = "[\"https://images.unsplash.com/photo-1590069261209-f8e9b8642343?auto=format&fit=crop&q=80&w=400\"]",
                 SpecificationsJson = "{\"dimensions\": \"215mm x 102.5mm x 65mm\", \"compressive_strength\": \"75 N/mm²\"}",
@@ -387,6 +414,7 @@ public static class DbInitializer
                 ConversionRatio = 1.0m,
                 BasePrice = 45.00m,
                 EnableForWebsite = true,
+                AllowBackorder = false,
                 TaxClass = taxStd
             };
 
