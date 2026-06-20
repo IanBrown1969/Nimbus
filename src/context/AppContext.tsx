@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
 
 interface UserProfile {
+  id?: string;
   username: string;
   role: string;
   tenantId: string;

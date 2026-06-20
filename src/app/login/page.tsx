@@ -41,9 +41,10 @@ export default function LoginPage() {
         password,
       });
 
-      const { token, role, tenantId, tenantName, language, currency } = response.data;
+      const { token, role, tenantId, tenantName, language, currency, userId } = response.data;
       
       login(token, {
+        id: String(userId),
         username,
         role,
         tenantId,

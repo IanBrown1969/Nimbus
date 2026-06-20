@@ -163,7 +163,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       badge: "SUP",
       items: [
         { name: "Supplier Directory", href: "/dashboard/finance" },
-        { name: "Purchase Orders", href: "/dashboard/finance" },
+        { name: "Purchase Orders", href: "/dashboard/finance/purchase-orders" },
         { name: "Supplier Bills (A/P)", href: "/dashboard/finance/supplier-bills" }
       ]
     },
