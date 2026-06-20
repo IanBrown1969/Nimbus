@@ -213,10 +213,88 @@ public class WarehouseController : ApiControllerBase
 
         return Ok(new
         {
-            message = "Stock check sheet created successfully.",
+            message = "stock check sheet created successfully.",
             stockCheckId = stockCheck.Id,
             linesCount = currentInventory.Count
         });
+    }
+
+    [HttpPost("stock/{id}")]
+    [Authorize(Roles = "CompanyAdmin,GlobalAdmin")]
+    public async Task<IActionResult> UpdateStockItem(long id, [FromBody] UpdateStockItemRequest request)
+    {
+        var hasPim = await _context.TenantPlugins.AnyAsync(tp => tp.Plugin.Code == "PIM" && tp.IsActive);
+
+        var item = await _context.StockItems.FindAsync(id);
+        if (item == null)
+        {
+            return NotFound();
+        }
+
+        item.SKU = request.SKU;
+        item.NameJson = request.NameJson;
+        item.DescriptionJson = request.DescriptionJson;
+        item.StockUnitOfSale = request.StockUnitOfSale;
+        item.SellUnitOfSale = request.SellUnitOfSale;
+        item.ConversionRatio = request.ConversionRatio;
+        item.BasePrice = request.BasePrice;
+        item.EnableForWebsite = request.EnableForWebsite;
+
+        if (hasPim)
+        {
+            item.RichDescriptionJson = request.RichDescriptionJson ?? "{}";
+            item.MediaUrlsJson = request.MediaUrlsJson ?? "[]";
+            item.SpecificationsJson = request.SpecificationsJson ?? "{}";
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(item);
+    }
+
+    [HttpPost("warehouses")]
+    [Authorize(Roles = "CompanyAdmin,GlobalAdmin")]
+    public async Task<IActionResult> CreateWarehouse([FromBody] CreateWarehouseRequest request)
+    {
+        var wh = new Warehouse
+        {
+            Code = request.Code,
+            Name = request.Name,
+            Address = request.Address
+        };
+        _context.Warehouses.Add(wh);
+        await _context.SaveChangesAsync();
+
+        // Auto-populate existing stock items with 0 stock in this new warehouse
+        var stockItems = await _context.StockItems.ToListAsync();
+        foreach (var item in stockItems)
+        {
+            _context.StockInventories.Add(new StockInventory
+            {
+                StockItemId = item.Id,
+                WarehouseId = wh.Id,
+                Quantity = 0.0m
+            });
+        }
+        await _context.SaveChangesAsync();
+
+        return Ok(wh);
+    }
+
+    [HttpPost("warehouses/{id}")]
+    [Authorize(Roles = "CompanyAdmin,GlobalAdmin")]
+    public async Task<IActionResult> UpdateWarehouse(long id, [FromBody] CreateWarehouseRequest request)
+    {
+        var wh = await _context.Warehouses.FindAsync(id);
+        if (wh == null)
+        {
+            return NotFound();
+        }
+        wh.Code = request.Code;
+        wh.Name = request.Name;
+        wh.Address = request.Address;
+
+        await _context.SaveChangesAsync();
+        return Ok(wh);
     }
 
     public class CreateStockItemRequest
@@ -243,5 +321,27 @@ public class WarehouseController : ApiControllerBase
     public class CreateStockCheckRequest
     {
         public string? Notes { get; set; }
+    }
+
+    public class UpdateStockItemRequest
+    {
+        public string SKU { get; set; } = null!;
+        public string NameJson { get; set; } = "{}";
+        public string DescriptionJson { get; set; } = "{}";
+        public string StockUnitOfSale { get; set; } = null!;
+        public string SellUnitOfSale { get; set; } = null!;
+        public decimal ConversionRatio { get; set; } = 1.0m;
+        public decimal BasePrice { get; set; }
+        public bool EnableForWebsite { get; set; }
+        public string? RichDescriptionJson { get; set; }
+        public string? MediaUrlsJson { get; set; }
+        public string? SpecificationsJson { get; set; }
+    }
+
+    public class CreateWarehouseRequest
+    {
+        public string Code { get; set; } = null!;
+        public string Name { get; set; } = null!;
+        public string? Address { get; set; }
     }
 }

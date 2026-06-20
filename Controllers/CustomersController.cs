@@ -97,6 +97,28 @@ public class CustomersController : ApiControllerBase
         return CreatedAtAction(nameof(GetCustomer), new { id = customer.Id }, customer);
     }
 
+    [HttpPost("{id}")]
+    [Authorize(Roles = "CompanyAdmin,Sales,Accounts,GlobalAdmin")]
+    public async Task<IActionResult> UpdateCustomer(long id, [FromBody] UpdateCustomerRequest request)
+    {
+        var customer = await _context.Customers.FindAsync(id);
+        if (customer == null)
+        {
+            return NotFound();
+        }
+
+        customer.Name = request.Name;
+        customer.CompanyName = request.CompanyName;
+        customer.Email = request.Email;
+        customer.Phone = request.Phone;
+        customer.DefaultCurrencyCode = request.DefaultCurrencyCode;
+        customer.CountryId = request.CountryId;
+        customer.IsActive = request.IsActive;
+
+        await _context.SaveChangesAsync();
+        return Ok(customer);
+    }
+
     [HttpPost("{id}/addresses")]
     [Authorize(Roles = "CompanyAdmin,Sales,Accounts,GlobalAdmin")]
     public async Task<IActionResult> AddAddress(long id, [FromBody] AddAddressRequest request)
@@ -162,5 +184,16 @@ public class CustomersController : ApiControllerBase
         public long? CountryId { get; set; }
         public string AddressType { get; set; } = "Billing";
         public bool IsDefault { get; set; }
+    }
+
+    public class UpdateCustomerRequest
+    {
+        public string Name { get; set; } = null!;
+        public string CompanyName { get; set; } = null!;
+        public string Email { get; set; } = null!;
+        public string Phone { get; set; } = null!;
+        public string DefaultCurrencyCode { get; set; } = "GBP";
+        public long? CountryId { get; set; }
+        public bool IsActive { get; set; }
     }
 }

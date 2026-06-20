@@ -21,6 +21,15 @@ public class FinanceController : ApiControllerBase
         _context = context;
     }
 
+    // 0.5. Countries
+    [HttpGet("countries")]
+    [Authorize(Roles = "Warehouse,Sales,Accounts,CompanyAdmin,GlobalAdmin")]
+    public async Task<IActionResult> GetCountries()
+    {
+        var countries = await _context.Countries.ToListAsync();
+        return Ok(countries);
+    }
+
     // 1. Invoices
     [HttpGet("invoices")]
     [Authorize(Roles = "Accounts,CompanyAdmin,GlobalAdmin")]
