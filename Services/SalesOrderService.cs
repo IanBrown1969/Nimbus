@@ -226,44 +226,114 @@ public class SalesOrderService : ISalesOrderService
             return requestedTaxRate;
         }
 
-        // Rule 1: Domestic Sale
-        if (baseCountry.Id == deliveryCountryId.Value)
+        // Determine delivery country zone fallback to Rest of the World
+        long? deliveryZoneId = null;
+        if (deliveryCountry.TaxZoneId.HasValue)
         {
+            var zone = await _context.TaxZones.FindAsync(deliveryCountry.TaxZoneId.Value);
+            if (zone != null && (zone.Name == "EU Tax Zone" || zone.Name == "UK Tax Zone"))
+            {
+                deliveryZoneId = deliveryCountry.TaxZoneId.Value;
+            }
+        }
+
+        if (deliveryZoneId == null)
+        {
+            var rotwZone = await _context.TaxZones
+                .FirstOrDefaultAsync(z => z.Name == "Rest of the World" || z.Name.Contains("Rest of the World"));
+            if (rotwZone != null)
+            {
+                deliveryZoneId = rotwZone.Id;
+            }
+        }
+
+        // Rule 1: Domestic Sale (Base Country == Delivery Country)
+        if (baseCountry.Id == deliveryCountry.Id)
+        {
+            // Do NOT check shippingAddress.TaxCode (no deduction for domestic).
+            // Look up direct country rate, then zone rate
             var rateRule = await _context.TaxRates
-                .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && r.DeliveryCountryId == deliveryCountryId.Value && r.TaxClassId == stockItem.TaxClassId.Value);
+                .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && 
+                                          r.DeliveryCountryId == deliveryCountry.Id && 
+                                          r.TaxClassId == stockItem.TaxClassId.Value);
+
+            if (rateRule == null && deliveryZoneId.HasValue)
+            {
+                rateRule = await _context.TaxRates
+                    .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && 
+                                              r.DeliveryZoneId == deliveryZoneId.Value && 
+                                              r.TaxClassId == stockItem.TaxClassId.Value);
+            }
+
             return rateRule?.Rate ?? requestedTaxRate;
         }
 
-        // Rule 2: Cross-Border Sale
-        var baseZoneId = baseCountry.TaxZoneId;
-        var deliveryZoneId = deliveryCountry.TaxZoneId;
-
-        // If in different zones
-        if (baseZoneId.HasValue && deliveryZoneId.HasValue && baseZoneId.Value != deliveryZoneId.Value)
+        // Rule 2: Cross-Border Sale (Base Country != Delivery Country)
+        if (shippingAddress != null && !string.IsNullOrWhiteSpace(shippingAddress.TaxCode))
         {
-            if (shippingAddress != null && !string.IsNullOrWhiteSpace(shippingAddress.TaxCode))
-            {
-                return 0.0m;
-            }
-            else
-            {
-                var rateRule = await _context.TaxRates
-                    .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && r.DeliveryCountryId == baseCountry.Id && r.TaxClassId == stockItem.TaxClassId.Value);
-                return rateRule?.Rate ?? requestedTaxRate;
-            }
+            // Deduct tax (zero-rated)
+            return 0.0m;
         }
 
-        // Same zone or no zones set: query specific combination
+        // If no VAT number provided, lookup tax rate mapping (country then zone then domestic fallback)
         var crossBorderRule = await _context.TaxRates
-            .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && r.DeliveryCountryId == deliveryCountryId.Value && r.TaxClassId == stockItem.TaxClassId.Value);
+            .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && 
+                                      r.DeliveryCountryId == deliveryCountry.Id && 
+                                      r.TaxClassId == stockItem.TaxClassId.Value);
+
         if (crossBorderRule != null)
         {
             return crossBorderRule.Rate;
         }
 
+        if (deliveryZoneId.HasValue)
+        {
+            var zoneRule = await _context.TaxRates
+                .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && 
+                                          r.DeliveryZoneId == deliveryZoneId.Value && 
+                                          r.TaxClassId == stockItem.TaxClassId.Value);
+            if (zoneRule != null)
+            {
+                return zoneRule.Rate;
+            }
+        }
+
         // Fallback to base country domestic tax
         var fallbackRule = await _context.TaxRates
-            .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && r.DeliveryCountryId == baseCountry.Id && r.TaxClassId == stockItem.TaxClassId.Value);
+            .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && 
+                                      r.DeliveryCountryId == baseCountry.Id && 
+                                      r.TaxClassId == stockItem.TaxClassId.Value);
+
+        if (fallbackRule == null)
+        {
+            long? baseZoneId = null;
+            if (baseCountry.TaxZoneId.HasValue)
+            {
+                var zone = await _context.TaxZones.FindAsync(baseCountry.TaxZoneId.Value);
+                if (zone != null && (zone.Name == "EU Tax Zone" || zone.Name == "UK Tax Zone"))
+                {
+                    baseZoneId = baseCountry.TaxZoneId.Value;
+                }
+            }
+            if (baseZoneId == null)
+            {
+                var rotwZone = await _context.TaxZones
+                    .FirstOrDefaultAsync(z => z.Name == "Rest of the World" || z.Name.Contains("Rest of the World"));
+                if (rotwZone != null)
+                {
+                    baseZoneId = rotwZone.Id;
+                }
+            }
+
+            if (baseZoneId.HasValue)
+            {
+                fallbackRule = await _context.TaxRates
+                    .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && 
+                                              r.DeliveryZoneId == baseZoneId.Value && 
+                                              r.TaxClassId == stockItem.TaxClassId.Value);
+            }
+        }
+
         return fallbackRule?.Rate ?? requestedTaxRate;
     }
 }
