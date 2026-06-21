@@ -37,7 +37,8 @@ interface AppContextType {
   setLayout: (layout: "sidebar" | "topnav") => void;
   refreshPlugins: () => Promise<void>;
   refreshPermissions: () => Promise<void>;
-  togglePlugin: (code: string) => Promise<boolean>;
+  togglePlugin: (code: string, configJson?: string) => Promise<boolean>;
+  updatePluginConfig: (code: string, configJson: string) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -144,18 +145,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const togglePlugin = async (code: string): Promise<boolean> => {
+  const togglePlugin = async (code: string, configJson?: string): Promise<boolean> => {
     if (!token) return false;
     try {
       const response = await axios.post(
         "http://localhost:5000/api/plugins/toggle",
-        { pluginCode: code },
+        { pluginCode: code, configurationSettingsJson: configJson },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       await refreshPlugins();
       return response.data.isSubscribed;
     } catch (error) {
       console.error("Failed to toggle plugin:", error);
+      return false;
+    }
+  };
+
+  const updatePluginConfig = async (code: string, configJson: string): Promise<boolean> => {
+    if (!token) return false;
+    try {
+      await axios.post(
+        `http://localhost:5000/api/plugins/${code}/config`,
+        { configurationSettingsJson: configJson },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      await refreshPlugins();
+      return true;
+    } catch (error) {
+      console.error("Failed to update plugin configuration:", error);
       return false;
     }
   };
@@ -177,7 +194,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setCurrency,
         refreshPlugins,
         refreshPermissions,
-        togglePlugin
+        togglePlugin,
+        updatePluginConfig
       }}
     >
       {children}
