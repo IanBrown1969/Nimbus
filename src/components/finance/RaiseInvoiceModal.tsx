@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Percent } from "lucide-react";
+import SearchableCustomerDropdown from "../common/SearchableCustomerDropdown";
 
 interface RaiseInvoiceModalProps {
   isOpen: boolean;
@@ -21,6 +22,11 @@ export default function RaiseInvoiceModal({
   onSuccess,
 }: RaiseInvoiceModalProps) {
   const [customerName, setCustomerName] = useState("");
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [invoiceDate, setInvoiceDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
+
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [currency, setCurrency] = useState("GBP");
   const [exchangeRate, setExchangeRate] = useState(1.0);
@@ -41,13 +47,46 @@ export default function RaiseInvoiceModal({
       setLineQty(10);
       setLinePrice(15.0);
       setVatRate(0.20);
+      setSelectedCustomer(null);
+
+      // Fetch customers
+      axios.get("http://localhost:5000/api/customers", {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(res => {
+        setCustomers(res.data);
+      }).catch(err => {
+        console.error("Failed to load customers", err);
+      });
+
+      // Default dates
+      const todayStr = new Date().toISOString().split("T")[0];
+      setInvoiceDate(todayStr);
+      const defaultDueDate = new Date();
+      defaultDueDate.setDate(defaultDueDate.getDate() + 30);
+      setDueDate(defaultDueDate.toISOString().split("T")[0]);
+
       if (stockList.length > 0) {
         setSelectedStockId(stockList[0].id.toString());
       } else {
         setSelectedStockId("");
       }
     }
-  }, [isOpen, stockList]);
+  }, [isOpen, stockList, token]);
+
+  const calculateDueDate = (dateStr: string, termDays: number) => {
+    if (!dateStr) return "";
+    const baseDate = new Date(dateStr);
+    if (isNaN(baseDate.getTime())) return "";
+    baseDate.setDate(baseDate.getDate() + termDays);
+    return baseDate.toISOString().split("T")[0];
+  };
+
+  useEffect(() => {
+    if (invoiceDate) {
+      const term = selectedCustomer?.creditContractDays || 30;
+      setDueDate(calculateDueDate(invoiceDate, term));
+    }
+  }, [invoiceDate, selectedCustomer]);
 
   if (!isOpen) return null;
 
@@ -68,7 +107,8 @@ export default function RaiseInvoiceModal({
       const payload = {
         invoiceNumber,
         customerName,
-        invoiceDate: new Date().toISOString(),
+        invoiceDate: new Date(invoiceDate).toISOString(),
+        dueDate: new Date(dueDate).toISOString(),
         currencyCode: currency,
         exchangeRateToBase: Number(exchangeRate),
         lines: [
@@ -120,13 +160,20 @@ export default function RaiseInvoiceModal({
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase text-slate-500">Customer Name</label>
-              <input
-                type="text"
-                required
+              <SearchableCustomerDropdown
+                customers={customers}
                 value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
+                onChange={(name, customer) => {
+                  setCustomerName(name);
+                  if (customer) {
+                    setSelectedCustomer(customer);
+                    setCurrency(customer.defaultCurrencyCode);
+                    setExchangeRate(customer.defaultCurrencyCode === "GBP" ? 1.0 : (customer.defaultCurrencyCode === "USD" ? 1.25 : 1.15));
+                  } else {
+                    setSelectedCustomer(null);
+                  }
+                }}
                 placeholder="Builders Depot Ltd"
-                className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-850"
               />
             </div>
           </div>
@@ -140,7 +187,7 @@ export default function RaiseInvoiceModal({
                   setCurrency(e.target.value);
                   setExchangeRate(e.target.value === "GBP" ? 1.0 : (e.target.value === "USD" ? 1.25 : 1.15));
                 }}
-                className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-850"
+                className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-855"
               >
                 <option value="GBP">GBP (£)</option>
                 <option value="USD">USD ($)</option>
@@ -155,7 +202,30 @@ export default function RaiseInvoiceModal({
                 required
                 value={exchangeRate}
                 onChange={(e) => setExchangeRate(Number(e.target.value))}
-                className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-850"
+                className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-855"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] font-bold uppercase text-slate-500">Invoice Date</label>
+              <input
+                type="date"
+                required
+                value={invoiceDate}
+                onChange={(e) => setInvoiceDate(e.target.value)}
+                className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-855"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase text-slate-500">Due Date (Auto Shift)</label>
+              <input
+                type="date"
+                required
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-855 font-semibold text-slate-700"
               />
             </div>
           </div>

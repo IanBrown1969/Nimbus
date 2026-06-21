@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import axios from "axios";
+import SearchableCustomerDropdown from "@/components/common/SearchableCustomerDropdown";
 import { 
   Receipt, 
   Plus, 
@@ -30,6 +31,7 @@ export default function SalesOrdersPage() {
 
   const [orders, setOrders] = useState<any[]>([]);
   const [stockList, setStockList] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,6 +69,11 @@ export default function SalesOrdersPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStockList(stockRes.data);
+
+      const customersRes = await axios.get("http://localhost:5000/api/customers", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setCustomers(customersRes.data);
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to load sales orders.");
     } finally {
@@ -347,13 +354,17 @@ export default function SalesOrdersPage() {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-500">Customer Name</label>
-                  <input
-                    type="text"
-                    required
+                  <SearchableCustomerDropdown
+                    customers={customers}
                     value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
+                    onChange={(name, customer) => {
+                      setCustomerName(name);
+                      if (customer) {
+                        setCurrency(customer.defaultCurrencyCode);
+                        setExchangeRate(customer.defaultCurrencyCode === "GBP" ? 1.0 : (customer.defaultCurrencyCode === "USD" ? 1.25 : 1.15));
+                      }
+                    }}
                     placeholder="John Builders Ltd"
-                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-[#00b7e2] text-slate-800"
                   />
                 </div>
               </div>

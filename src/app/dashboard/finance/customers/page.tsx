@@ -50,6 +50,7 @@ export default function CustomersPage() {
   const [phone, setPhone] = useState("");
   const [currency, setCurrency] = useState("GBP");
   const [selectedCountryId, setSelectedCountryId] = useState<number | "">("");
+  const [creditContractDays, setCreditContractDays] = useState(30);
   const [addresses, setAddresses] = useState<AddressInput[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -62,6 +63,7 @@ export default function CustomersPage() {
   const [editCurrency, setEditCurrency] = useState("");
   const [editCountryId, setEditCountryId] = useState<number | "">("");
   const [editIsActive, setEditIsActive] = useState(true);
+  const [editCreditContractDays, setEditCreditContractDays] = useState(30);
   const [updating, setUpdating] = useState(false);
 
   // Add Address inside drawer states
@@ -127,6 +129,7 @@ export default function CustomersPage() {
     setEditCurrency(c.defaultCurrencyCode || "GBP");
     setEditCountryId(c.countryId || "");
     setEditIsActive(c.isActive !== false);
+    setEditCreditContractDays(c.creditContractDays || 30);
 
     // Reset drawer address states
     setNewAddrName("");
@@ -153,7 +156,8 @@ export default function CustomersPage() {
         phone: editPhone,
         defaultCurrencyCode: editCurrency,
         countryId: editCountryId === "" ? null : Number(editCountryId),
-        isActive: editIsActive
+        isActive: editIsActive,
+        creditContractDays: Number(editCreditContractDays)
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -255,6 +259,7 @@ export default function CustomersPage() {
         phone,
         defaultCurrencyCode: currency,
         countryId: selectedCountryId === "" ? null : Number(selectedCountryId),
+        creditContractDays: Number(creditContractDays),
         addresses: addresses.map(a => ({
           ...a,
           countryId: a.countryId === "" ? null : Number(a.countryId)
@@ -272,6 +277,7 @@ export default function CustomersPage() {
       setPhone("");
       setCurrency("GBP");
       setSelectedCountryId("");
+      setCreditContractDays(30);
       setAddresses([]);
       fetchCustomers();
     } catch (err: any) {
@@ -352,6 +358,7 @@ export default function CustomersPage() {
                 <th className="py-3.5 px-5">Email</th>
                 <th className="py-3.5 px-5">Phone</th>
                 <th className="py-3.5 px-5">Currency</th>
+                <th className="py-3.5 px-5">Credit Term</th>
                 <th className="py-3.5 px-5 text-center">Status</th>
               </tr>
             </thead>
@@ -371,6 +378,7 @@ export default function CustomersPage() {
                   <td className="py-3 px-5 font-mono text-slate-600">{customer.email}</td>
                   <td className="py-3 px-5 text-slate-600">{customer.phone}</td>
                   <td className="py-3 px-5 text-center font-bold text-slate-600">{customer.defaultCurrencyCode}</td>
+                  <td className="py-3 px-5 text-slate-600 font-semibold">Net {customer.creditContractDays || 30} Days</td>
                   <td className="py-3 px-5 text-center">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold ${customer.isActive ? "bg-emerald-50 text-emerald-700 border border-emerald-250" : "bg-slate-100 text-slate-500 border border-slate-200"}`}>
                       {customer.isActive ? "Active" : "Inactive"}
@@ -456,19 +464,34 @@ export default function CustomersPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-500">Billing Country</label>
-                  <select
-                    value={selectedCountryId}
-                    onChange={(e) => setSelectedCountryId(e.target.value === "" ? "" : Number(e.target.value))}
-                    required
-                    className="w-full mt-1 text-xs px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-800"
-                  >
-                    <option value="">Select Country</option>
-                    {countries.map(c => (
-                      <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase text-slate-500">Billing Country</label>
+                    <select
+                      value={selectedCountryId}
+                      onChange={(e) => setSelectedCountryId(e.target.value === "" ? "" : Number(e.target.value))}
+                      required
+                      className="w-full mt-1 text-xs px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-800"
+                    >
+                      <option value="">Select Country</option>
+                      {countries.map(c => (
+                        <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase text-slate-500">Credit Contract Term</label>
+                    <select
+                      value={creditContractDays}
+                      onChange={(e) => setCreditContractDays(Number(e.target.value))}
+                      required
+                      className="w-full mt-1 text-xs px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-800"
+                    >
+                      <option value={30}>Net 30 Days</option>
+                      <option value={60}>Net 60 Days</option>
+                      <option value={90}>Net 90 Days</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -713,7 +736,7 @@ export default function CustomersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-500">Default Currency</label>
                   <input
@@ -736,6 +759,19 @@ export default function CustomersPage() {
                     {countries.map(c => (
                       <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
                     ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Credit Contract Term</label>
+                  <select
+                    value={editCreditContractDays}
+                    onChange={(e) => setEditCreditContractDays(Number(e.target.value))}
+                    required
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
+                  >
+                    <option value={30}>Net 30 Days</option>
+                    <option value={60}>Net 60 Days</option>
+                    <option value={90}>Net 90 Days</option>
                   </select>
                 </div>
               </div>
