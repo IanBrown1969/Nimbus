@@ -29,73 +29,85 @@ public static class DbInitializer
         }
 
         // 1. Seed Plugins (Global)
-        if (!context.Plugins.Any())
+        var existingCodes = context.Plugins.Select(p => p.Code).ToList();
+        var pluginsToSeed = new List<Plugin>
         {
-            context.Plugins.AddRange(
-                new Plugin
-                {
-                    Id = 1,
-                    Code = "PIM",
-                    Name = "Product Information Management",
-                    Description = "Unlocks advanced catalog features including specification parameters, rich multilingual descriptions, and media galleries.",
-                    MonthlyPrice = 49.99m,
-                    IsActive = true
-                },
-                new Plugin
-                {
-                    Id = 2,
-                    Code = "WMS",
-                    Name = "Warehouse Management System",
-                    Description = "Unlocks physical aisle-shelf-bin tracking, stock movement history logs, and auditing/stock check sessions.",
-                    MonthlyPrice = 79.99m,
-                    IsActive = true
-                },
-                new Plugin
-                {
-                    Id = 3,
-                    Code = "SUP",
-                    Name = "Supplier & Purchasing Management",
-                    Description = "Unlocks supplier catalog directories, Purchase Orders (PO) workflow lifecycle, and Goods Received Delivery Notes matching.",
-                    MonthlyPrice = 59.99m,
-                    IsActive = true
-                },
-                new Plugin
-                {
-                    Id = 4,
-                    Code = "CDN",
-                    Name = "Azure Cloud Storage & CDN",
-                    Description = "Enables highly scalable file uploads to Azure Blob Storage, serving all images and invoice attachments via Azure CDN for production speed.",
-                    MonthlyPrice = 19.99m,
-                    IsActive = true
-                },
-                new Plugin
-                {
-                    Id = 5,
-                    Code = "AUD",
-                    Name = "Audit Trail & Traceability",
-                    Description = "Provides system-wide audit logging and change tracking of all transactions and master records for compliance and traceability.",
-                    MonthlyPrice = 29.99m,
-                    IsActive = true
-                },
-                new Plugin
-                {
-                    Id = 6,
-                    Code = "VAT",
-                    Name = "Complex VAT & Tax Class Manager",
-                    Description = "Allows configuring custom tax classes, countries, and a matrix of tax rate mappings for multi-national sales orders.",
-                    MonthlyPrice = 39.99m,
-                    IsActive = true
-                },
-                new Plugin
-                {
-                    Id = 7,
-                    Code = "BNK",
-                    Name = "Open Banking & Reconciliation Feed",
-                    Description = "Connect to bank accounts, dynamically fetch statements via Plaid/Open Banking, and match ledger transactions.",
-                    MonthlyPrice = 29.99m,
-                    IsActive = true
-                }
-            );
+            new Plugin
+            {
+                Id = 1,
+                Code = "PIM",
+                Name = "Product Information Management",
+                Description = "Unlocks advanced catalog features including specification parameters, rich multilingual descriptions, and media galleries.",
+                MonthlyPrice = 49.99m,
+                IsActive = true
+            },
+            new Plugin
+            {
+                Id = 2,
+                Code = "WMS",
+                Name = "Warehouse Management System",
+                Description = "Unlocks physical aisle-shelf-bin tracking, stock movement history logs, and auditing/stock check sessions.",
+                MonthlyPrice = 79.99m,
+                IsActive = true
+            },
+            new Plugin
+            {
+                Id = 3,
+                Code = "SUP",
+                Name = "Supplier & Purchasing Management",
+                Description = "Unlocks supplier catalog directories, Purchase Orders (PO) workflow lifecycle, and Goods Received Delivery Notes matching.",
+                MonthlyPrice = 59.99m,
+                IsActive = true
+            },
+            new Plugin
+            {
+                Id = 4,
+                Code = "CDN",
+                Name = "Azure Cloud Storage & CDN",
+                Description = "Enables highly scalable file uploads to Azure Blob Storage, serving all images and invoice attachments via Azure CDN for production speed.",
+                MonthlyPrice = 19.99m,
+                IsActive = true
+            },
+            new Plugin
+            {
+                Id = 5,
+                Code = "AUD",
+                Name = "Audit Trail & Traceability",
+                Description = "Provides system-wide audit logging and change tracking of all transactions and master records for compliance and traceability.",
+                MonthlyPrice = 29.99m,
+                IsActive = true
+            },
+            new Plugin
+            {
+                Id = 6,
+                Code = "VAT",
+                Name = "Complex VAT & Tax Class Manager",
+                Description = "Allows configuring custom tax classes, countries, and a matrix of tax rate mappings for multi-national sales orders.",
+                MonthlyPrice = 39.99m,
+                IsActive = true
+            },
+            new Plugin
+            {
+                Id = 7,
+                Code = "BNK",
+                Name = "Open Banking & Reconciliation Feed",
+                Description = "Connect to bank accounts, dynamically fetch statements via Plaid/Open Banking, and match ledger transactions.",
+                MonthlyPrice = 29.99m,
+                IsActive = true
+            }
+        };
+
+        bool addedAnyGlobal = false;
+        foreach (var p in pluginsToSeed)
+        {
+            if (!existingCodes.Contains(p.Code))
+            {
+                context.Plugins.Add(p);
+                addedAnyGlobal = true;
+            }
+        }
+        if (addedAnyGlobal)
+        {
             context.SaveChanges();
         }
 
@@ -324,9 +336,11 @@ public static class DbInitializer
         }
 
         // 2. Seed local Plugins copy
-        if (!context.Plugins.Any())
+        var existingTenantCodes = context.Plugins.Select(p => p.Code).ToList();
+        bool addedAnyTenant = false;
+        foreach (var p in allPlugins)
         {
-            foreach (var p in allPlugins)
+            if (!existingTenantCodes.Contains(p.Code))
             {
                 context.Plugins.Add(new Plugin
                 {
@@ -337,7 +351,11 @@ public static class DbInitializer
                     MonthlyPrice = p.MonthlyPrice,
                     IsActive = p.IsActive
                 });
+                addedAnyTenant = true;
             }
+        }
+        if (addedAnyTenant)
+        {
             context.SaveChanges();
         }
 
