@@ -969,7 +969,10 @@ public static class DbInitializer
 
                 // DE Domestic
                 new TaxRate { TenantId = tenant.Id, BaseCountry = de, DeliveryCountry = de, TaxClass = taxStd, Rate = 0.19m },
-                new TaxRate { TenantId = tenant.Id, BaseCountry = de, DeliveryCountry = de, TaxClass = taxRed, Rate = 0.07m }
+                new TaxRate { TenantId = tenant.Id, BaseCountry = de, DeliveryCountry = de, TaxClass = taxRed, Rate = 0.07m },
+
+                // FR Domestic
+                new TaxRate { TenantId = tenant.Id, BaseCountry = fr, DeliveryCountry = fr, TaxClass = taxStd, Rate = 0.20m }
             );
             context.SaveChanges();
         }
