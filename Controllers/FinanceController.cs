@@ -323,22 +323,41 @@ public class FinanceController : ApiControllerBase
     public async Task<IActionResult> GetProfitLoss()
     {
         var ledgerLines = await _context.LedgerLines.ToListAsync();
+        var accounts = await _context.LedgerAccounts.ToListAsync();
 
-        // Revenue (Account Code starting with "1", usually Credits)
-        var revenue = ledgerLines
-            .Where(l => l.AccountCode.StartsWith("1"))
-            .Sum(l => l.Credit - l.Debit);
+        var revenueAccounts = accounts.Where(a => a.Type == LedgerAccountType.Revenue || a.AccountCode.StartsWith("1")).ToList();
+        var expenseAccounts = accounts.Where(a => a.Type == LedgerAccountType.Expense || a.AccountCode.StartsWith("2")).ToList();
 
-        // Expenses (Account Code starting with "2", usually Debits)
-        var expenses = ledgerLines
-            .Where(l => l.AccountCode.StartsWith("2"))
-            .Sum(l => l.Debit - l.Credit);
+        var revenueDetails = revenueAccounts.Select(acc => {
+            var lines = ledgerLines.Where(l => l.AccountCode == acc.AccountCode).ToList();
+            var balance = lines.Sum(l => l.Credit - l.Debit);
+            return new {
+                acc.AccountCode,
+                acc.Name,
+                Balance = balance
+            };
+        }).Where(a => a.Balance != 0).ToList();
+
+        var expenseDetails = expenseAccounts.Select(acc => {
+            var lines = ledgerLines.Where(l => l.AccountCode == acc.AccountCode).ToList();
+            var balance = lines.Sum(l => l.Debit - l.Credit);
+            return new {
+                acc.AccountCode,
+                acc.Name,
+                Balance = balance
+            };
+        }).Where(a => a.Balance != 0).ToList();
+
+        var totalRevenue = revenueDetails.Sum(r => r.Balance);
+        var totalExpenses = expenseDetails.Sum(e => e.Balance);
 
         return Ok(new
         {
-            Revenue = revenue,
-            Expenses = expenses,
-            NetProfit = revenue - expenses
+            RevenueDetails = revenueDetails,
+            ExpenseDetails = expenseDetails,
+            TotalRevenue = totalRevenue,
+            TotalExpenses = totalExpenses,
+            NetProfit = totalRevenue - totalExpenses
         });
     }
 
@@ -348,24 +367,41 @@ public class FinanceController : ApiControllerBase
     public async Task<IActionResult> GetBalanceSheet()
     {
         var ledgerLines = await _context.LedgerLines.ToListAsync();
+        var accounts = await _context.LedgerAccounts.ToListAsync();
 
-        // Assets: Accounts 3000 (Debtors), 6000 (Bank), 1500 (Contra-asset Accum. Depreciation)
-        // Asset net = Debits - Credits
-        var assets = ledgerLines
-            .Where(l => l.AccountCode.StartsWith("3") || l.AccountCode.StartsWith("6") || l.AccountCode == "1500" || l.AccountCode == "1000" && l.Debit > 0)
-            .Sum(l => l.Debit - l.Credit);
+        var assetAccounts = accounts.Where(a => a.Type == LedgerAccountType.Asset || a.AccountCode.StartsWith("3") || a.AccountCode.StartsWith("6") || a.AccountCode == "1500").ToList();
+        var liabilityAccounts = accounts.Where(a => a.Type == LedgerAccountType.Liability || a.AccountCode.StartsWith("4") || a.AccountCode.StartsWith("5")).ToList();
 
-        // Liabilities: Accounts 4000 (Creditors), 4100 (PAYE), 4200 (Wages), 5000 (VAT)
-        // Liability net = Credits - Debits
-        var liabilities = ledgerLines
-            .Where(l => l.AccountCode.StartsWith("4") || l.AccountCode.StartsWith("5"))
-            .Sum(l => l.Credit - l.Debit);
+        var assetDetails = assetAccounts.Select(acc => {
+            var lines = ledgerLines.Where(l => l.AccountCode == acc.AccountCode).ToList();
+            var balance = lines.Sum(l => l.Debit - l.Credit);
+            return new {
+                acc.AccountCode,
+                acc.Name,
+                Balance = balance
+            };
+        }).Where(a => a.Balance != 0).ToList();
+
+        var liabilityDetails = liabilityAccounts.Select(acc => {
+            var lines = ledgerLines.Where(l => l.AccountCode == acc.AccountCode).ToList();
+            var balance = lines.Sum(l => l.Credit - l.Debit);
+            return new {
+                acc.AccountCode,
+                acc.Name,
+                Balance = balance
+            };
+        }).Where(a => a.Balance != 0).ToList();
+
+        var totalAssets = assetDetails.Sum(a => a.Balance);
+        var totalLiabilities = liabilityDetails.Sum(l => l.Balance);
 
         return Ok(new
         {
-            TotalAssets = assets,
-            TotalLiabilities = liabilities,
-            NetEquity = assets - liabilities
+            AssetDetails = assetDetails,
+            LiabilityDetails = liabilityDetails,
+            TotalAssets = totalAssets,
+            TotalLiabilities = totalLiabilities,
+            NetEquity = totalAssets - totalLiabilities
         });
     }
 

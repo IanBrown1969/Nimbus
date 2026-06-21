@@ -70,6 +70,10 @@ builder.Services.AddScoped<ISalesOrderService, SalesOrderService>();
 // Register IDeliveryService
 builder.Services.AddScoped<IDeliveryService, DeliveryService>();
 
+// Register PlaidService and HttpClient
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<PlaidService>();
+
 // Register SQL Server DB Context
 builder.Services.AddDbContext<NimbusDbContext>((serviceProvider, options) =>
 {

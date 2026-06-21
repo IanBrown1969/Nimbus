@@ -30,6 +30,29 @@ public class CustomersController : ApiControllerBase
             .ThenInclude(a => a.Country)
             .OrderBy(c => c.CustomerRef)
             .ToListAsync();
+
+        var invoices = await _context.Invoices
+            .Where(i => i.Status != InvoiceStatus.Paid && i.Status != InvoiceStatus.Draft)
+            .ToListAsync();
+
+        var now = DateTime.UtcNow;
+
+        foreach (var c in customers)
+        {
+            var cInvoices = invoices
+                .Where(i => i.CustomerName == c.Name || i.CustomerName == c.CompanyName)
+                .ToList();
+
+            c.TotalDebt = cInvoices.Sum(i => i.TotalGross);
+            c.AgedDebt = new AgedDebtBreakdown
+            {
+                Current = cInvoices.Where(i => (now - i.InvoiceDate).TotalDays <= 30).Sum(i => i.TotalGross),
+                Over30 = cInvoices.Where(i => { var d = (now - i.InvoiceDate).TotalDays; return d > 30 && d <= 60; }).Sum(i => i.TotalGross),
+                Over60 = cInvoices.Where(i => { var d = (now - i.InvoiceDate).TotalDays; return d > 60 && d <= 90; }).Sum(i => i.TotalGross),
+                Over90 = cInvoices.Where(i => (now - i.InvoiceDate).TotalDays > 90).Sum(i => i.TotalGross)
+            };
+        }
+
         return Ok(customers);
     }
 
@@ -46,6 +69,23 @@ public class CustomersController : ApiControllerBase
         {
             return NotFound();
         }
+
+        var invoices = await _context.Invoices
+            .Where(i => (i.CustomerName == customer.Name || i.CustomerName == customer.CompanyName) 
+                        && i.Status != InvoiceStatus.Paid && i.Status != InvoiceStatus.Draft)
+            .ToListAsync();
+
+        var now = DateTime.UtcNow;
+
+        customer.TotalDebt = invoices.Sum(i => i.TotalGross);
+        customer.AgedDebt = new AgedDebtBreakdown
+        {
+            Current = invoices.Where(i => (now - i.InvoiceDate).TotalDays <= 30).Sum(i => i.TotalGross),
+            Over30 = invoices.Where(i => { var d = (now - i.InvoiceDate).TotalDays; return d > 30 && d <= 60; }).Sum(i => i.TotalGross),
+            Over60 = invoices.Where(i => { var d = (now - i.InvoiceDate).TotalDays; return d > 60 && d <= 90; }).Sum(i => i.TotalGross),
+            Over90 = invoices.Where(i => (now - i.InvoiceDate).TotalDays > 90).Sum(i => i.TotalGross)
+        };
+
         return Ok(customer);
     }
 
