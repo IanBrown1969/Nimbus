@@ -14,4 +14,5 @@ public long TenantId { get; set; }
     public DateTime EnabledDate { get; set; } = DateTime.UtcNow;
     public DateTime? ExpiryDate { get; set; }
     public bool IsActive { get; set; } = true;
+    public string? ConfigurationSettingsJson { get; set; }
 }

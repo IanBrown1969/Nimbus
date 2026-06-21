@@ -13,6 +13,21 @@ public static class DbInitializer
         // Ensure catalog database exists
         context.Database.EnsureCreated();
 
+        // Migrate TenantPlugins ConfigurationSettingsJson column if needed
+        if (context.Database.ProviderName == "Microsoft.EntityFrameworkCore.SqlServer")
+        {
+            context.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (
+                    SELECT * FROM sys.columns 
+                    WHERE object_id = OBJECT_ID(N'[dbo].[TenantPlugins]') 
+                    AND name = N'ConfigurationSettingsJson'
+                )
+                BEGIN
+                    ALTER TABLE [dbo].[TenantPlugins] ADD [ConfigurationSettingsJson] NVARCHAR(MAX) NULL;
+                END
+            ");
+        }
+
         // 1. Seed Plugins (Global)
         if (!context.Plugins.Any())
         {
@@ -178,6 +193,17 @@ public static class DbInitializer
                 )
                 BEGIN
                     ALTER TABLE [dbo].[Customers] ADD [CreditContractDays] INT NOT NULL DEFAULT 30;
+                END
+            ");
+
+            context.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (
+                    SELECT * FROM sys.columns 
+                    WHERE object_id = OBJECT_ID(N'[dbo].[TenantPlugins]') 
+                    AND name = N'ConfigurationSettingsJson'
+                )
+                BEGIN
+                    ALTER TABLE [dbo].[TenantPlugins] ADD [ConfigurationSettingsJson] NVARCHAR(MAX) NULL;
                 END
             ");
 
