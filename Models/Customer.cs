@@ -1,7 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Nimbus.DatabaseStructures.Models;
+
+public class AgedDebtBreakdown
+{
+    public decimal Current { get; set; } // 0-30 days
+    public decimal Over30 { get; set; }  // 31-60 days
+    public decimal Over60 { get; set; }  // 61-90 days
+    public decimal Over90 { get; set; }  // 90+ days
+}
 
 public class Customer
 {
@@ -22,4 +31,10 @@ public class Customer
     public Country? Country { get; set; }
 
     public ICollection<CustomerAddress> Addresses { get; set; } = new List<CustomerAddress>();
+
+    [NotMapped]
+    public decimal TotalDebt { get; set; }
+
+    [NotMapped]
+    public AgedDebtBreakdown AgedDebt { get; set; } = new AgedDebtBreakdown();
 }

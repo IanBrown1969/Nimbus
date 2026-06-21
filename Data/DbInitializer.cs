@@ -85,6 +85,15 @@ public static class DbInitializer
                     Description = "Allows configuring custom tax classes, countries, and a matrix of tax rate mappings for multi-national sales orders.",
                     MonthlyPrice = 39.99m,
                     IsActive = true
+                },
+                new Plugin
+                {
+                    Id = 7,
+                    Code = "BNK",
+                    Name = "Open Banking & Reconciliation Feed",
+                    Description = "Connect to bank accounts, dynamically fetch statements via Plaid/Open Banking, and match ledger transactions.",
+                    MonthlyPrice = 29.99m,
+                    IsActive = true
                 }
             );
             context.SaveChanges();
@@ -220,6 +229,61 @@ public static class DbInitializer
                         CONSTRAINT [FK_RolePermissions_Tenants_TenantId] FOREIGN KEY ([TenantId]) REFERENCES [dbo].[Tenants] ([Id]) ON DELETE CASCADE
                     );
                     CREATE UNIQUE INDEX [IX_RolePermissions_TenantId_Role_Area] ON [dbo].[RolePermissions] ([TenantId], [Role], [Area]);
+                END
+            ");
+
+            context.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (
+                    SELECT * FROM sys.columns 
+                    WHERE object_id = OBJECT_ID(N'[dbo].[AccountingPeriods]') 
+                    AND name = N'ClosedBy'
+                )
+                BEGIN
+                    ALTER TABLE [dbo].[AccountingPeriods] ADD [ClosedBy] NVARCHAR(MAX) NULL;
+                    ALTER TABLE [dbo].[AccountingPeriods] ADD [ClosedAt] DATETIME2 NULL;
+                    ALTER TABLE [dbo].[AccountingPeriods] ADD [CloseNotes] NVARCHAR(MAX) NULL;
+                END
+            ");
+
+            context.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[PaymentGateways]') AND type in (N'U'))
+                BEGIN
+                    CREATE TABLE [dbo].[PaymentGateways] (
+                        [Id] BIGINT IDENTITY(1,1) NOT NULL,
+                        [TenantId] BIGINT NOT NULL,
+                        [Name] NVARCHAR(200) NOT NULL,
+                        [Provider] NVARCHAR(100) NOT NULL,
+                        [Status] NVARCHAR(50) NOT NULL DEFAULT 'inactive',
+                        [SettlementAccountId] BIGINT NOT NULL,
+                        [ProcessingFee] NVARCHAR(100) NOT NULL,
+                        [SecretKey] NVARCHAR(MAX) NULL,
+                        [WebhookSecret] NVARCHAR(MAX) NULL,
+                        CONSTRAINT [PK_PaymentGateways] PRIMARY KEY CLUSTERED ([Id] ASC),
+                        CONSTRAINT [FK_PaymentGateways_Tenants_TenantId] FOREIGN KEY ([TenantId]) REFERENCES [dbo].[Tenants] ([Id]) ON DELETE CASCADE
+                    );
+                    CREATE UNIQUE INDEX [IX_PaymentGateways_TenantId_Name] ON [dbo].[PaymentGateways] ([TenantId], [Name]);
+                END
+            ");
+
+            context.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[GrantPrograms]') AND type in (N'U'))
+                BEGIN
+                    CREATE TABLE [dbo].[GrantPrograms] (
+                        [Id] BIGINT IDENTITY(1,1) NOT NULL,
+                        [TenantId] BIGINT NOT NULL,
+                        [Name] NVARCHAR(200) NOT NULL,
+                        [Donor] NVARCHAR(200) NOT NULL,
+                        [TotalBudget] DECIMAL(18,4) NOT NULL,
+                        [AllocatedBudget] DECIMAL(18,4) NOT NULL,
+                        [Spent] DECIMAL(18,4) NOT NULL,
+                        [StartDate] DATETIME2 NOT NULL,
+                        [EndDate] DATETIME2 NOT NULL,
+                        [Status] NVARCHAR(50) NOT NULL DEFAULT 'active',
+                        [ComplianceScore] INT NOT NULL DEFAULT 100,
+                        CONSTRAINT [PK_GrantPrograms] PRIMARY KEY CLUSTERED ([Id] ASC),
+                        CONSTRAINT [FK_GrantPrograms_Tenants_TenantId] FOREIGN KEY ([TenantId]) REFERENCES [dbo].[Tenants] ([Id]) ON DELETE CASCADE
+                    );
+                    CREATE UNIQUE INDEX [IX_GrantPrograms_TenantId_Name] ON [dbo].[GrantPrograms] ([TenantId], [Name]);
                 END
             ");
         }
@@ -797,6 +861,70 @@ public static class DbInitializer
                     LastDepreciationDate = null
                 };
                 context.FixedAssets.Add(computerAsset);
+                context.SaveChanges();
+            }
+
+            // Seed Payment Gateways
+            if (!context.PaymentGateways.Any())
+            {
+                context.PaymentGateways.AddRange(
+                    new PaymentGateway
+                    {
+                        TenantId = tenant.Id,
+                        Name = "Stripe UK Primary",
+                        Provider = "Stripe",
+                        Status = "active",
+                        SettlementAccountId = currentAccount.Id,
+                        ProcessingFee = "1.4% + £0.20",
+                        SecretKey = "sk_test_mock_12345",
+                        WebhookSecret = "whsec_mock_54321"
+                    },
+                    new PaymentGateway
+                    {
+                        TenantId = tenant.Id,
+                        Name = "PayPal Commercial",
+                        Provider = "PayPal",
+                        Status = "inactive",
+                        SettlementAccountId = currentAccount.Id,
+                        ProcessingFee = "2.9% + £0.30",
+                        SecretKey = null,
+                        WebhookSecret = null
+                    }
+                );
+                context.SaveChanges();
+            }
+
+            // Seed Grant Programs
+            if (!context.GrantPrograms.Any())
+            {
+                context.GrantPrograms.AddRange(
+                    new GrantProgram
+                    {
+                        TenantId = tenant.Id,
+                        Name = "Innovate UK R&D Grant",
+                        Donor = "UK Government",
+                        TotalBudget = 150000.00m,
+                        AllocatedBudget = 120000.00m,
+                        Spent = 45000.00m,
+                        StartDate = DateTime.UtcNow.AddMonths(-6),
+                        EndDate = DateTime.UtcNow.AddMonths(6),
+                        Status = "active",
+                        ComplianceScore = 98
+                    },
+                    new GrantProgram
+                    {
+                        TenantId = tenant.Id,
+                        Name = "Green Technology Subsidy",
+                        Donor = "EU Climate Fund",
+                        TotalBudget = 75000.00m,
+                        AllocatedBudget = 75000.00m,
+                        Spent = 75000.00m,
+                        StartDate = DateTime.UtcNow.AddYears(-1),
+                        EndDate = DateTime.UtcNow.AddMonths(-1),
+                        Status = "completed",
+                        ComplianceScore = 100
+                    }
+                );
                 context.SaveChanges();
             }
         }

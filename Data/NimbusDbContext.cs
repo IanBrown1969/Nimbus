@@ -89,6 +89,8 @@ public class NimbusDbContext : DbContext
     public DbSet<AccountingPeriod> AccountingPeriods { get; set; } = null!;
     public DbSet<Customer> Customers { get; set; } = null!;
     public DbSet<CustomerAddress> CustomerAddresses { get; set; } = null!;
+    public DbSet<PaymentGateway> PaymentGateways { get; set; } = null!;
+    public DbSet<GrantProgram> GrantPrograms { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -143,6 +145,8 @@ public class NimbusDbContext : DbContext
         builder.Entity<TaxRate>().HasIndex(tr => new { tr.TenantId, tr.CountryId, tr.TaxClassId }).IsUnique();
         builder.Entity<AccountingDimension>().HasIndex(ad => new { ad.TenantId, ad.Code, ad.Type }).IsUnique();
         builder.Entity<AccountingPeriod>().HasIndex(ap => new { ap.TenantId, ap.Name }).IsUnique();
+        builder.Entity<PaymentGateway>().HasIndex(pg => new { pg.TenantId, pg.Name }).IsUnique();
+        builder.Entity<GrantProgram>().HasIndex(gp => new { gp.TenantId, gp.Name }).IsUnique();
 
         // Setup multi-tenant global query filters
         builder.Entity<User>().HasQueryFilter(u => u.TenantId == _tenantProvider.TenantId);
@@ -187,6 +191,8 @@ public class NimbusDbContext : DbContext
         builder.Entity<AccountingPeriod>().HasQueryFilter(ap => ap.TenantId == _tenantProvider.TenantId);
         builder.Entity<Customer>().HasQueryFilter(c => c.TenantId == _tenantProvider.TenantId);
         builder.Entity<CustomerAddress>().HasQueryFilter(ca => ca.TenantId == _tenantProvider.TenantId);
+        builder.Entity<PaymentGateway>().HasQueryFilter(pg => pg.TenantId == _tenantProvider.TenantId);
+        builder.Entity<GrantProgram>().HasQueryFilter(gp => gp.TenantId == _tenantProvider.TenantId);
     }
 
     // Automate TenantId injection on SaveChanges
