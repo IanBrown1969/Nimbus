@@ -11,8 +11,11 @@ public class TaxRate
     public long BaseCountryId { get; set; }
     public Country BaseCountry { get; set; } = null!;
 
-    public long DeliveryCountryId { get; set; }
-    public Country DeliveryCountry { get; set; } = null!;
+    public long? DeliveryCountryId { get; set; }
+    public Country? DeliveryCountry { get; set; }
+
+    public long? DeliveryZoneId { get; set; }
+    public TaxZone? DeliveryZone { get; set; }
 
     public long TaxClassId { get; set; }
     public TaxClass TaxClass { get; set; } = null!;

@@ -144,7 +144,7 @@ public class NimbusDbContext : DbContext
         builder.Entity<Country>().HasIndex(c => new { c.TenantId, c.Code }).IsUnique();
         builder.Entity<TaxClass>().HasIndex(tc => new { tc.TenantId, tc.Code }).IsUnique();
         builder.Entity<TaxZone>().HasIndex(tz => new { tz.TenantId, tz.Name }).IsUnique();
-        builder.Entity<TaxRate>().HasIndex(tr => new { tr.TenantId, tr.BaseCountryId, tr.DeliveryCountryId, tr.TaxClassId }).IsUnique();
+        builder.Entity<TaxRate>().HasIndex(tr => new { tr.TenantId, tr.BaseCountryId, tr.DeliveryCountryId, tr.DeliveryZoneId, tr.TaxClassId }).IsUnique();
         builder.Entity<AccountingDimension>().HasIndex(ad => new { ad.TenantId, ad.Code, ad.Type }).IsUnique();
         builder.Entity<AccountingPeriod>().HasIndex(ap => new { ap.TenantId, ap.Name }).IsUnique();
         builder.Entity<PaymentGateway>().HasIndex(pg => new { pg.TenantId, pg.Name }).IsUnique();
@@ -214,6 +214,12 @@ public class NimbusDbContext : DbContext
             .HasOne(tr => tr.DeliveryCountry)
             .WithMany()
             .HasForeignKey(tr => tr.DeliveryCountryId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<TaxRate>()
+            .HasOne(tr => tr.DeliveryZone)
+            .WithMany()
+            .HasForeignKey(tr => tr.DeliveryZoneId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 

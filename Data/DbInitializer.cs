@@ -328,6 +328,23 @@ public static class DbInitializer
             ");
 
             context.Database.ExecuteSqlRaw(@"
+                UPDATE [dbo].[Countries] SET [Iso3] = 'GBR' WHERE [Code] = 'GB' AND [Iso3] IS NULL;
+                UPDATE [dbo].[Countries] SET [Iso3] = 'USA' WHERE [Code] = 'US' AND [Iso3] IS NULL;
+                UPDATE [dbo].[Countries] SET [Iso3] = 'FRA' WHERE [Code] = 'FR' AND [Iso3] IS NULL;
+                UPDATE [dbo].[Countries] SET [Iso3] = 'DEU' WHERE [Code] = 'DE' AND [Iso3] IS NULL;
+                UPDATE [dbo].[Countries] SET [Iso3] = 'CAN' WHERE [Code] = 'CA' AND [Iso3] IS NULL;
+                UPDATE [dbo].[Countries] SET [Iso3] = 'ITA' WHERE [Code] = 'IT' AND [Iso3] IS NULL;
+                UPDATE [dbo].[Countries] SET [Iso3] = 'ESP' WHERE [Code] = 'ES' AND [Iso3] IS NULL;
+                UPDATE [dbo].[Countries] SET [Iso3] = 'NLD' WHERE [Code] = 'NL' AND [Iso3] IS NULL;
+                UPDATE [dbo].[Countries] SET [Iso3] = 'IRL' WHERE [Code] = 'IE' AND [Iso3] IS NULL;
+                UPDATE [dbo].[Countries] SET [Iso3] = UPPER(LEFT([Code] + 'XXX', 3)) WHERE [Iso3] IS NULL;
+            ");
+
+            context.Database.ExecuteSqlRaw(@"
+                ALTER TABLE [dbo].[Countries] ALTER COLUMN [Iso3] NVARCHAR(3) NOT NULL;
+            ");
+
+            context.Database.ExecuteSqlRaw(@"
                 IF NOT EXISTS (
                     SELECT * FROM sys.columns 
                     WHERE object_id = OBJECT_ID(N'[dbo].[Countries]') 
@@ -415,6 +432,14 @@ public static class DbInitializer
                 BEGIN
                     DROP INDEX [IX_TaxRates_TenantId_CountryId_TaxClassId] ON [dbo].[TaxRates];
                 END
+
+                IF EXISTS (
+                    SELECT * FROM sys.indexes 
+                    WHERE name = N'IX_TaxRates_CountryId' AND object_id = OBJECT_ID(N'[dbo].[TaxRates]')
+                )
+                BEGIN
+                    DROP INDEX [IX_TaxRates_CountryId] ON [dbo].[TaxRates];
+                END
             ");
 
             context.Database.ExecuteSqlRaw(@"
@@ -455,6 +480,55 @@ public static class DbInitializer
                 )
                 BEGIN
                     ALTER TABLE [dbo].[TaxRates] DROP COLUMN [CountryId];
+                END
+            ");
+
+            // Migrate TaxRates to allow NULL for DeliveryCountryId and add DeliveryZoneId
+            context.Database.ExecuteSqlRaw(@"
+                -- Ensure DeliveryCountryId is nullable
+                DECLARE @IsNullableDelivery BIT;
+                SELECT @IsNullableDelivery = is_nullable FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[TaxRates]') AND name = N'DeliveryCountryId';
+                IF @IsNullableDelivery = 0
+                BEGIN
+                    -- Drop the old unique index first since it depends on DeliveryCountryId
+                    IF EXISTS (
+                        SELECT * FROM sys.indexes 
+                        WHERE name = N'IX_TaxRates_TenantId_BaseCountryId_DeliveryCountryId_TaxClassId' AND object_id = OBJECT_ID(N'[dbo].[TaxRates]')
+                    )
+                    BEGIN
+                        DROP INDEX [IX_TaxRates_TenantId_BaseCountryId_DeliveryCountryId_TaxClassId] ON [dbo].[TaxRates];
+                    END
+
+                    ALTER TABLE [dbo].[TaxRates] ALTER COLUMN [DeliveryCountryId] BIGINT NULL;
+                END
+
+                -- Ensure DeliveryZoneId column exists and FK constraint is added
+                IF NOT EXISTS (
+                    SELECT * FROM sys.columns 
+                    WHERE object_id = OBJECT_ID(N'[dbo].[TaxRates]') 
+                    AND name = N'DeliveryZoneId'
+                )
+                BEGIN
+                    ALTER TABLE [dbo].[TaxRates] ADD [DeliveryZoneId] BIGINT NULL;
+                    ALTER TABLE [dbo].[TaxRates] ADD CONSTRAINT [FK_TaxRates_TaxZones_DeliveryZoneId] FOREIGN KEY ([DeliveryZoneId]) REFERENCES [dbo].[TaxZones] ([Id]);
+                END
+
+                -- Ensure composite unique index exists
+                IF NOT EXISTS (
+                    SELECT * FROM sys.indexes 
+                    WHERE name = N'IX_TaxRates_TenantId_BaseCountryId_DeliveryCountryId_DeliveryZoneId_TaxClassId' AND object_id = OBJECT_ID(N'[dbo].[TaxRates]')
+                )
+                BEGIN
+                    IF EXISTS (
+                        SELECT * FROM sys.indexes 
+                        WHERE name = N'IX_TaxRates_TenantId_BaseCountryId_DeliveryCountryId_TaxClassId' AND object_id = OBJECT_ID(N'[dbo].[TaxRates]')
+                    )
+                    BEGIN
+                        DROP INDEX [IX_TaxRates_TenantId_BaseCountryId_DeliveryCountryId_TaxClassId] ON [dbo].[TaxRates];
+                    END
+
+                    CREATE UNIQUE INDEX [IX_TaxRates_TenantId_BaseCountryId_DeliveryCountryId_DeliveryZoneId_TaxClassId] 
+                    ON [dbo].[TaxRates] ([TenantId], [BaseCountryId], [DeliveryCountryId], [DeliveryZoneId], [TaxClassId]);
                 END
             ");
         }
@@ -763,29 +837,40 @@ public static class DbInitializer
         // Seed Tax Zones (UK and EU)
         TaxZone zoneUk = null!;
         TaxZone zoneEu = null!;
+        TaxZone zoneRow = null!;
 
         if (!context.TaxZones.Any())
         {
             zoneUk = new TaxZone { TenantId = tenant.Id, Name = "UK Tax Zone", Description = "United Kingdom domestic tax rules" };
             zoneEu = new TaxZone { TenantId = tenant.Id, Name = "EU Tax Zone", Description = "European Union member states" };
-            context.TaxZones.AddRange(zoneUk, zoneEu);
+            zoneRow = new TaxZone { TenantId = tenant.Id, Name = "Rest of the World", Description = "Default zone for all other countries" };
+            context.TaxZones.AddRange(zoneUk, zoneEu, zoneRow);
             context.SaveChanges();
         }
         else
         {
             zoneUk = context.TaxZones.First(z => z.Name == "UK Tax Zone");
             zoneEu = context.TaxZones.First(z => z.Name == "EU Tax Zone");
+            zoneRow = context.TaxZones.FirstOrDefault(z => z.Name == "Rest of the World") 
+                      ?? new TaxZone { TenantId = tenant.Id, Name = "Rest of the World", Description = "Default zone for all other countries" };
+            if (zoneRow.Id == 0)
+            {
+                context.TaxZones.Add(zoneRow);
+                context.SaveChanges();
+            }
         }
 
-        // Associate seeded countries to Tax Zones
+        // Associate seeded countries to Tax Zones (EEA countries to EU Tax Zone by default)
         gb.TaxZoneId = zoneUk.Id;
-        fr.TaxZoneId = zoneEu.Id;
-        de.TaxZoneId = zoneEu.Id;
 
-        var ie = context.Countries.FirstOrDefault(c => c.Code == "IE");
-        if (ie != null)
+        var eeaCodes = new HashSet<string> { "FR", "DE", "IT", "ES", "NL", "IE", "BE", "DK", "SE", "NO", "FI", "PL", "AT", "PT" };
+        var countriesToUpdate = context.Countries.IgnoreQueryFilters().Where(c => c.TenantId == tenant.Id).ToList();
+        foreach (var country in countriesToUpdate)
         {
-            ie.TaxZoneId = zoneEu.Id;
+            if (eeaCodes.Contains(country.Code))
+            {
+                country.TaxZoneId = zoneEu.Id;
+            }
         }
         context.SaveChanges();
 
