@@ -130,7 +130,7 @@ export default function FinancePage() {
       </div>
 
       {/* Quick Navigation Hub */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         {[
           { href: "/dashboard/finance/accounts", label: "Ledger Accounts", desc: "Chart of Accounts" },
           { href: "/dashboard/finance/sales-orders", label: "Sales Orders", desc: "Draft & Approve SO" },
@@ -138,6 +138,8 @@ export default function FinancePage() {
           { href: "/dashboard/finance/credit-notes", label: "Credit Notes", desc: "Sales Adjustments" },
           { href: "/dashboard/finance/vat", label: "VAT Returns", desc: "HMRC 9-Boxes" },
           { href: "/dashboard/finance/bank", label: "Bank Feeds", desc: "Match & Reconcile" },
+          { href: "/dashboard/finance/profit-loss", label: "Profit & Loss", desc: "Income statement" },
+          { href: "/dashboard/finance/balance-sheet", label: "Balance Sheet", desc: "Position statement" },
           { href: "/dashboard/finance/payroll", label: "Payroll runs", desc: "Slips & PAYE tax" },
           { href: "/dashboard/finance/claims", label: "Expense claims", desc: "Receipt approvals" },
           { href: "/dashboard/finance/assets", label: "Fixed Assets", desc: "Depreciation schedules" },

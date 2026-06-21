@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useApp } from "@/context/AppContext";
 import { 
   CreditCard, 
   Settings2, 
@@ -15,17 +16,9 @@ import {
   DollarSign, 
   ToggleLeft, 
   ToggleRight,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from "lucide-react";
-
-interface Gateway {
-  id: string;
-  name: string;
-  provider: string;
-  status: "active" | "inactive";
-  settlementAccount: string;
-  processingFee: string;
-}
 
 interface PaymentTransaction {
   id: string;
@@ -38,14 +31,18 @@ interface PaymentTransaction {
 }
 
 export default function PaymentManagementPage() {
-  const [gateways, setGateways] = useState<Gateway[]>([
-    { id: "GW-01", name: "Stripe Card Processing", provider: "Stripe API v3", status: "active", settlementAccount: "1200 - Barclays Current", processingFee: "1.4% + 20p" },
-    { id: "GW-02", name: "PayPal Express Checkout", provider: "PayPal Commerce", status: "active", settlementAccount: "1210 - PayPal Holding", processingFee: "2.9% + 30p" },
-    { id: "GW-03", name: "BACS Direct Debit", provider: "GoCardless Integration", status: "inactive", settlementAccount: "1200 - Barclays Current", processingFee: "1.0% Max £2.00" },
-    { id: "GW-04", name: "Apple Pay & Google Wallet", provider: "Stripe Link", status: "active", settlementAccount: "1200 - Barclays Current", processingFee: "1.4% + 20p" }
-  ]);
+  const { token, activeLanguage } = useApp();
 
-  const [transactions, setTransactions] = useState<PaymentTransaction[]>([
+  const [gateways, setGateways] = useState<any[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeGatewayId, setActiveGatewayId] = useState<number | null>(null);
+
+  // Credentials config inputs
+  const [secretKey, setSecretKey] = useState("");
+  const [webhookSecret, setWebhookSecret] = useState("");
+
+  const [transactions] = useState<PaymentTransaction[]>([
     { id: "PAY-10029", date: "2026-06-21 08:12", customerName: "John & Builders Ltd", reference: "INV-2026-1049", amount: 450.00, gateway: "Stripe", status: "settled" },
     { id: "PAY-10028", date: "2026-06-20 17:45", customerName: "Acme Holdings Corp", reference: "INV-2026-1048", amount: 3200.00, gateway: "PayPal", status: "settled" },
     { id: "PAY-10027", date: "2026-06-20 12:22", customerName: "Vanguard Tech Inc", reference: "INV-2026-1047", amount: 1540.00, gateway: "Stripe", status: "processing" },
@@ -54,18 +51,97 @@ export default function PaymentManagementPage() {
   ]);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeGatewayId, setActiveGatewayId] = useState<string | null>(null);
 
-  const toggleGatewayStatus = (id: string) => {
-    setGateways(prev => prev.map(gw => {
-      if (gw.id === id) {
-        return {
-          ...gw,
-          status: gw.status === "active" ? "inactive" : "active"
-        };
+  const fetchPaymentsData = async () => {
+    if (!token) return;
+    try {
+      setLoading(true);
+      // Fetch gateways
+      const gwRes = await fetch("http://localhost:5000/api/finance/payments/gateways", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (gwRes.ok) {
+        const gwData = await gwRes.json();
+        setGateways(gwData);
       }
-      return gw;
-    }));
+
+      // Fetch bank accounts
+      const bankRes = await fetch("http://localhost:5000/api/finance/bank/accounts", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (bankRes.ok) {
+        const bankData = await bankRes.json();
+        setBankAccounts(bankData);
+      }
+    } catch (err) {
+      console.error("Error loading payments view:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (token) {
+      fetchPaymentsData();
+    }
+  }, [token]);
+
+  const handleToggleGateway = async (id: number) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`http://localhost:5000/api/finance/payments/gateways/${id}/toggle`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const nextRes = await fetch("http://localhost:5000/api/finance/payments/gateways", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (nextRes.ok) {
+          setGateways(await nextRes.json());
+        }
+      }
+    } catch (err) {
+      console.error("Error toggling gateway:", err);
+    }
+  };
+
+  const handleSaveCredentials = async (id: number) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`http://localhost:5000/api/finance/payments/gateways/${id}/credentials`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ secretKey, webhookSecret })
+      });
+      if (res.ok) {
+        alert("Gateway credentials successfully updated and authenticated!");
+        setActiveGatewayId(null);
+        setSecretKey("");
+        setWebhookSecret("");
+        // Refresh list
+        const nextRes = await fetch("http://localhost:5000/api/finance/payments/gateways", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (nextRes.ok) {
+          setGateways(await nextRes.json());
+        }
+      } else {
+        alert("Failed to save gateway configurations.");
+      }
+    } catch (err) {
+      console.error("Credentials error:", err);
+    }
+  };
+
+  const formatMoney = (val: number, curr = "GBP") => {
+    return new Intl.NumberFormat(activeLanguage || "en-GB", {
+      style: "currency",
+      currency: curr
+    }).format(val);
   };
 
   const filteredTx = transactions.filter(t => 
@@ -84,9 +160,12 @@ export default function PaymentManagementPage() {
           <p className="text-slate-655 text-sm mt-1">Configure customer collection gateways, map payment settlement ledgers, and audit clearing logs.</p>
         </div>
         <div className="flex gap-3">
-          <button className="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl flex items-center gap-1.5 cursor-pointer transition-all active:scale-95">
-            <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
-            Clear Pending Settlements
+          <button 
+            onClick={fetchPaymentsData}
+            className="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${loading ? "animate-spin" : ""}`} />
+            Refresh Gateways
           </button>
         </div>
       </div>
@@ -120,8 +199,12 @@ export default function PaymentManagementPage() {
         <div className="p-6 bg-white border border-slate-200 rounded-3xl shadow-sm flex flex-col justify-between">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Active Integrations</span>
           <div className="mt-2">
-            <span className="text-3xl font-bold text-slate-800">3 Gateways</span>
-            <span className="block text-[10px] text-emerald-600 font-semibold mt-1">GoCardless Pending Setup</span>
+            <span className="text-3xl font-bold text-slate-800">
+              {gateways.filter(g => g.status === "active").length} Gateways
+            </span>
+            <span className="block text-[10px] text-emerald-650 font-semibold mt-1">
+              {gateways.filter(g => g.status !== "active").length} Inactive In Catalog
+            </span>
           </div>
         </div>
       </div>
@@ -137,89 +220,107 @@ export default function PaymentManagementPage() {
               <p className="text-xs text-slate-500 mt-0.5">Toggle and configure available payment channels for A/R Invoices checkout links.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {gateways.map((gw) => (
-                <div 
-                  key={gw.id}
-                  className={`p-5 rounded-2xl border flex flex-col justify-between transition-all bg-white ${
-                    gw.status === "active" 
-                      ? "border-violet-300 ring-1 ring-violet-100 shadow-md shadow-violet-100/30" 
-                      : "border-slate-200"
-                  }`}
-                >
-                  <div className="space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-800">{gw.name}</h4>
-                        <span className="text-[9px] font-mono text-slate-450 block mt-0.5">{gw.provider}</span>
-                      </div>
-                      <button 
-                        onClick={() => toggleGatewayStatus(gw.id)}
-                        className="cursor-pointer text-slate-500 hover:text-slate-800 transition-colors"
-                      >
-                        {gw.status === "active" ? (
-                          <ToggleRight className="w-9 h-6 text-violet-600 fill-violet-100" />
-                        ) : (
-                          <ToggleLeft className="w-9 h-6 text-slate-350" />
-                        )}
-                      </button>
-                    </div>
+            {loading ? (
+              <div className="text-center py-12 text-slate-500 text-xs font-semibold">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-violet-650" /> Loading payment gateways...
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {gateways.map((gw) => {
+                  const settlementAcc = bankAccounts.find(ba => ba.id === gw.settlementAccountId);
+                  const settlementAccountName = settlementAcc 
+                    ? `${settlementAcc.accountName} (****${settlementAcc.accountNumber.slice(-4)})` 
+                    : "No Ledger Account Linked";
 
-                    <div className="space-y-1.5 text-xs border-t border-slate-100 pt-3 text-slate-600">
-                      <div className="flex justify-between">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase">Clearing Account</span>
-                        <span className="font-semibold text-slate-850">{gw.settlementAccount}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase">Fees Agreement</span>
-                        <span className="font-semibold text-slate-850">{gw.processingFee}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 flex gap-2">
-                    <button 
-                      onClick={() => setActiveGatewayId(activeGatewayId === gw.id ? null : gw.id)}
-                      className="w-full py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                  return (
+                    <div 
+                      key={gw.id}
+                      className={`p-5 rounded-2xl border flex flex-col justify-between transition-all bg-white ${
+                        gw.status === "active" 
+                          ? "border-violet-300 ring-1 ring-violet-100 shadow-md shadow-violet-100/30" 
+                          : "border-slate-200"
+                      }`}
                     >
-                      <Settings2 className="w-3.5 h-3.5 text-slate-500" />
-                      Configure API Keys
-                    </button>
-                  </div>
+                      <div className="space-y-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-800">{gw.name}</h4>
+                            <span className="text-[9px] font-mono text-slate-450 block mt-0.5">{gw.provider} Gateway</span>
+                          </div>
+                          <button 
+                            onClick={() => handleToggleGateway(gw.id)}
+                            className="cursor-pointer text-slate-500 hover:text-slate-800 transition-colors"
+                          >
+                            {gw.status === "active" ? (
+                              <ToggleRight className="w-9 h-6 text-violet-600 fill-violet-100" />
+                            ) : (
+                              <ToggleLeft className="w-9 h-6 text-slate-350" />
+                            )}
+                          </button>
+                        </div>
 
-                  {/* Inline active config fields */}
-                  {activeGatewayId === gw.id && (
-                    <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3.5 animate-in slide-in-from-top-2 duration-150">
-                      <div>
-                        <label className="text-[9px] font-bold uppercase text-slate-500 block">Merchant Secret Key</label>
-                        <input 
-                          type="password" 
-                          placeholder="sk_live_••••••••••••••••••••" 
-                          className="w-full mt-1 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-800"
-                        />
+                        <div className="space-y-1.5 text-xs border-t border-slate-100 pt-3 text-slate-600">
+                          <div className="flex justify-between gap-4">
+                            <span className="text-[10px] text-slate-400 font-bold uppercase shrink-0">Clearing Account</span>
+                            <span className="font-semibold text-slate-850 truncate">{settlementAccountName}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-[10px] text-slate-400 font-bold uppercase">Fees Agreement</span>
+                            <span className="font-semibold text-slate-850">{gw.processingFee}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-[9px] font-bold uppercase text-slate-500 block">Webhook Signing Signature</label>
-                        <input 
-                          type="password" 
-                          placeholder="whsec_••••••••••••••••" 
-                          className="w-full mt-1 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-800"
-                        />
+
+                      <div className="mt-6 flex gap-2">
+                        <button 
+                          onClick={() => {
+                            setActiveGatewayId(activeGatewayId === gw.id ? null : gw.id);
+                            setSecretKey(gw.secretKey || "");
+                            setWebhookSecret(gw.webhookSecret || "");
+                          }}
+                          className="w-full py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                        >
+                          <Settings2 className="w-3.5 h-3.5 text-slate-500" />
+                          Configure API Keys
+                        </button>
                       </div>
-                      <button 
-                        onClick={() => {
-                          alert("Gateway credentials successfully updated and authenticated!");
-                          setActiveGatewayId(null);
-                        }}
-                        className="w-full py-1.5 bg-slate-800 hover:bg-slate-750 text-white text-[10px] font-bold rounded-lg cursor-pointer transition-all"
-                      >
-                        Save & Test Connection
-                      </button>
+
+                      {/* Inline active config fields */}
+                      {activeGatewayId === gw.id && (
+                        <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3.5 animate-in slide-in-from-top-2 duration-150">
+                          <div>
+                            <label className="text-[9px] font-bold uppercase text-slate-500 block">Merchant Secret Key</label>
+                            <input 
+                              type="password" 
+                              value={secretKey}
+                              onChange={(e) => setSecretKey(e.target.value)}
+                              placeholder="sk_live_••••••••••••••••••••" 
+                              className="w-full mt-1 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-800"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-bold uppercase text-slate-500 block">Webhook Signing Signature</label>
+                            <input 
+                              type="password" 
+                              value={webhookSecret}
+                              onChange={(e) => setWebhookSecret(e.target.value)}
+                              placeholder="whsec_••••••••••••••••" 
+                              className="w-full mt-1 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-800"
+                            />
+                          </div>
+                          <button 
+                            onClick={() => handleSaveCredentials(gw.id)}
+                            className="w-full py-1.5 bg-slate-800 hover:bg-slate-750 text-white text-[10px] font-bold rounded-lg cursor-pointer transition-all"
+                          >
+                            Save & Test Connection
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -246,11 +347,11 @@ export default function PaymentManagementPage() {
               {filteredTx.map((t) => (
                 <div 
                   key={t.id}
-                  className="p-3.5 bg-slate-50/50 border border-slate-150 rounded-xl space-y-2"
+                  className="p-3.5 bg-slate-50/50 border border-slate-150 rounded-xl space-y-2 animate-in fade-in"
                 >
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-bold text-slate-850">{t.customerName}</span>
-                    <strong className="text-slate-900">£{t.amount.toFixed(2)}</strong>
+                    <strong className="text-slate-900">{formatMoney(t.amount)}</strong>
                   </div>
 
                   <div className="flex justify-between items-center text-[10px] text-slate-450 border-t border-slate-100 pt-2">

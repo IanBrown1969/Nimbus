@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useApp } from "@/context/AppContext";
 import { 
   Award, 
   Plus, 
@@ -14,29 +15,15 @@ import {
   BookOpen, 
   DollarSign, 
   RefreshCw,
-  FolderLock
+  FolderLock,
+  Loader2
 } from "lucide-react";
 
-interface Grant {
-  id: string;
-  name: string;
-  donor: string;
-  totalBudget: number;
-  allocatedBudget: number;
-  spent: number;
-  startDate: string;
-  endDate: string;
-  status: "active" | "completed" | "audited";
-  complianceScore: number;
-}
-
 export default function GrantManagementPage() {
-  const [grants, setGrants] = useState<Grant[]>([
-    { id: "GR-028", name: "Innovate UK CleanTech R&D", donor: "Innovate UK", totalBudget: 250000, allocatedBudget: 200000, spent: 145000, startDate: "2026-01-01", endDate: "2026-12-31", status: "active", complianceScore: 98 },
-    { id: "GR-027", name: "EU Horizon NetZero Pipeline", donor: "European Commission", totalBudget: 750000, allocatedBudget: 600000, spent: 320000, startDate: "2025-06-01", endDate: "2027-05-31", status: "active", complianceScore: 94 },
-    { id: "GR-026", name: "Local Green Logistics Subvention", donor: "Greater London Authority", totalBudget: 50000, allocatedBudget: 50000, spent: 50000, startDate: "2025-01-01", endDate: "2025-12-31", status: "completed", complianceScore: 100 },
-    { id: "GR-025", name: "Innovate UK AI Acceleration", donor: "Innovate UK", totalBudget: 120000, allocatedBudget: 120000, spent: 120000, startDate: "2024-03-01", endDate: "2025-02-28", status: "audited", complianceScore: 97 }
-  ]);
+  const { token, activeLanguage } = useApp();
+
+  const [grants, setGrants] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
@@ -46,44 +33,91 @@ export default function GrantManagementPage() {
   const [newStartDate, setNewStartDate] = useState("");
   const [newEndDate, setNewEndDate] = useState("");
 
-  const handleCreateGrant = (e: React.FormEvent) => {
+  const fetchGrants = async () => {
+    if (!token) return;
+    try {
+      setLoading(true);
+      const res = await fetch("http://localhost:5000/api/finance/grants", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setGrants(await res.json());
+      }
+    } catch (err) {
+      console.error("Error loading grants:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (token) {
+      fetchGrants();
+    }
+  }, [token]);
+
+  const handleCreateGrant = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newGrantName.trim() || !newDonor.trim() || !newBudget.trim()) return;
+    if (!token || !newGrantName.trim() || !newDonor.trim() || !newBudget.trim()) return;
 
     const budgetVal = parseFloat(newBudget);
-    const newGrant: Grant = {
-      id: `GR-0${grants.length + 25}`,
+    const body = {
       name: newGrantName.trim(),
       donor: newDonor.trim(),
       totalBudget: budgetVal,
       allocatedBudget: budgetVal * 0.8,
       spent: 0,
-      startDate: newStartDate || new Date().toISOString().split('T')[0],
-      endDate: newEndDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      startDate: newStartDate || new Date().toISOString(),
+      endDate: newEndDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
       status: "active",
       complianceScore: 100
     };
 
-    setGrants(prev => [newGrant, ...prev]);
-    
-    // reset form
-    setNewGrantName("");
-    setNewDonor("");
-    setNewBudget("");
-    setNewStartDate("");
-    setNewEndDate("");
-    setShowAddForm(false);
+    try {
+      const res = await fetch("http://localhost:5000/api/finance/grants", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        setNewGrantName("");
+        setNewDonor("");
+        setNewBudget("");
+        setNewStartDate("");
+        setNewEndDate("");
+        setShowAddForm(false);
+        await fetchGrants();
+      } else {
+        const errorData = await res.json();
+        alert(errorData.message || "Failed to create funding program.");
+      }
+    } catch (err) {
+      console.error("Create grant error:", err);
+    }
+  };
+
+  const formatMoney = (val: number, curr = "GBP") => {
+    return new Intl.NumberFormat(activeLanguage || "en-GB", {
+      style: "currency",
+      currency: curr
+    }).format(val);
   };
 
   const filteredGrants = grants.filter(g => 
     g.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     g.donor.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    g.id.toLowerCase().includes(searchQuery.toLowerCase())
+    String(g.id).toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const totalPortfolio = grants.reduce((sum, g) => sum + g.totalBudget, 0);
   const totalSpent = grants.reduce((sum, g) => sum + g.spent, 0);
-  const avgCompliance = Math.round(grants.reduce((sum, g) => sum + g.complianceScore, 0) / grants.length);
+  const avgCompliance = grants.length > 0 
+    ? Math.round(grants.reduce((sum, g) => sum + g.complianceScore, 0) / grants.length)
+    : 100;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -109,7 +143,9 @@ export default function GrantManagementPage() {
         <div className="p-6 bg-white border border-slate-200 rounded-3xl shadow-sm flex flex-col justify-between">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Grant Portfolio Value</span>
           <div className="mt-2">
-            <span className="text-3xl font-bold text-slate-800">£{(totalPortfolio / 1000).toFixed(0)}k</span>
+            <span className="text-3xl font-bold text-slate-800">
+              {totalPortfolio >= 1000 ? `£${(totalPortfolio / 1000).toFixed(0)}k` : formatMoney(totalPortfolio)}
+            </span>
             <span className="block text-[10px] text-slate-500 mt-1">Across {grants.length} active programs</span>
           </div>
         </div>
@@ -117,8 +153,12 @@ export default function GrantManagementPage() {
         <div className="p-6 bg-white border border-slate-200 rounded-3xl shadow-sm flex flex-col justify-between">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Disbursed Capital</span>
           <div className="mt-2">
-            <span className="text-3xl font-bold text-slate-800">£{(totalSpent / 1000).toFixed(0)}k</span>
-            <span className="block text-[10px] text-slate-500 mt-1">{((totalSpent / totalPortfolio) * 100).toFixed(1)}% portfolio draw</span>
+            <span className="text-3xl font-bold text-slate-800">
+              {totalSpent >= 1000 ? `£${(totalSpent / 1000).toFixed(0)}k` : formatMoney(totalSpent)}
+            </span>
+            <span className="block text-[10px] text-slate-500 mt-1">
+              {totalPortfolio > 0 ? ((totalSpent / totalPortfolio) * 100).toFixed(1) : "0.0"}% portfolio draw
+            </span>
           </div>
         </div>
 
@@ -126,15 +166,17 @@ export default function GrantManagementPage() {
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Compliance Audit Score</span>
           <div className="mt-2">
             <span className="text-3xl font-bold text-slate-800">{avgCompliance}%</span>
-            <span className="block text-[10px] text-emerald-600 font-semibold mt-1">All audit items signed off</span>
+            <span className="block text-[10px] text-emerald-650 font-semibold mt-1">All audit items signed off</span>
           </div>
         </div>
 
         <div className="p-6 bg-white border border-slate-200 rounded-3xl shadow-sm flex flex-col justify-between">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Allocated Pipeline Balance</span>
           <div className="mt-2">
-            <span className="text-3xl font-bold text-slate-800">£{((totalPortfolio - totalSpent) / 1000).toFixed(0)}k</span>
-            <span className="block text-[10px] text-amber-600 font-semibold mt-1">£35k remaining allocation limit</span>
+            <span className="text-3xl font-bold text-slate-800">
+              {(totalPortfolio - totalSpent) >= 1000 ? `£${((totalPortfolio - totalSpent) / 1000).toFixed(0)}k` : formatMoney(totalPortfolio - totalSpent)}
+            </span>
+            <span className="block text-[10px] text-emerald-650 font-semibold mt-1">Pipeline funds available</span>
           </div>
         </div>
       </div>
@@ -162,55 +204,65 @@ export default function GrantManagementPage() {
               </div>
             </div>
 
-            <div className="divide-y divide-slate-150">
-              {filteredGrants.map((g) => {
-                const percentSpent = ((g.spent / g.totalBudget) * 100).toFixed(0);
-                return (
-                  <div key={g.id} className="py-5 flex flex-col md:flex-row justify-between gap-4 transition-all hover:bg-slate-50/50 rounded-xl px-2">
-                    <div className="space-y-2 flex-1">
-                      <div className="flex items-start gap-2.5">
-                        <div className="p-2 bg-violet-50 border border-violet-100 text-violet-650 rounded-xl shrink-0">
-                          <Award className="w-5 h-5" />
+            {loading ? (
+              <div className="text-center py-12 text-slate-505 text-xs font-semibold">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-violet-650" /> Loading grants...
+              </div>
+            ) : filteredGrants.length === 0 ? (
+              <div className="text-center py-12 text-slate-450 text-xs italic border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+                No grant programs found.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-150">
+                {filteredGrants.map((g) => {
+                  const percentSpent = g.totalBudget > 0 ? ((g.spent / g.totalBudget) * 100).toFixed(0) : "0";
+                  return (
+                    <div key={g.id} className="py-5 flex flex-col md:flex-row justify-between gap-4 transition-all hover:bg-slate-50/50 rounded-xl px-2">
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-start gap-2.5">
+                          <div className="p-2 bg-violet-50 border border-violet-100 text-violet-650 rounded-xl shrink-0">
+                            <Award className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-855 flex items-center gap-2">
+                              {g.name}
+                              <span className="text-[9px] font-mono bg-slate-100 text-slate-550 px-1.5 py-0.5 rounded uppercase tracking-wider">GR-{g.id}</span>
+                            </h4>
+                            <span className="text-[10px] text-slate-500 block mt-1">Donor: <strong className="text-slate-700 font-semibold">{g.donor}</strong></span>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="text-sm font-bold text-slate-850 flex items-center gap-2">
-                            {g.name}
-                            <span className="text-[9px] font-mono bg-slate-100 text-slate-550 px-1.5 py-0.5 rounded uppercase tracking-wider">{g.id}</span>
-                          </h4>
-                          <span className="text-[10px] text-slate-500 block mt-1">Donor: <strong className="text-slate-700 font-semibold">{g.donor}</strong></span>
+
+                        {/* Progress utilisation bar */}
+                        <div className="pl-10 space-y-1 max-w-md">
+                          <div className="flex justify-between text-[9px] text-slate-400 font-bold uppercase">
+                            <span>Utilisation: {formatMoney(g.spent)} / {formatMoney(g.totalBudget)}</span>
+                            <span className="text-slate-655">{percentSpent}% spent</span>
+                          </div>
+                          <div className="w-full bg-slate-150 h-1.5 rounded-full overflow-hidden">
+                            <div className="bg-gradient-to-r from-violet-500 to-indigo-650 h-full rounded-full transition-all duration-300" style={{ width: `${percentSpent}%` }}></div>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Progress utilisation bar */}
-                      <div className="pl-10 space-y-1 max-w-md">
-                        <div className="flex justify-between text-[9px] text-slate-400 font-bold uppercase">
-                          <span>Utilisation: £{g.spent.toLocaleString()} / £{g.totalBudget.toLocaleString()}</span>
-                          <span className="text-slate-655">{percentSpent}% spent</span>
-                        </div>
-                        <div className="w-full bg-slate-150 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-gradient-to-r from-violet-500 to-indigo-650 h-full rounded-full transition-all duration-300" style={{ width: `${percentSpent}%` }}></div>
+                      <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-2 shrink-0 md:text-right">
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider ${
+                          g.status === "active" 
+                            ? "bg-sky-50 border border-sky-200 text-sky-700" 
+                            : g.status === "completed" 
+                            ? "bg-emerald-50 border border-emerald-250 text-emerald-700" 
+                            : "bg-purple-50 border border-purple-250 text-purple-705"
+                        }`}>
+                          {g.status}
+                        </span>
+                        <div className="text-[10px] text-slate-450 mt-1">
+                          Compliance Index: <strong className="text-emerald-700 font-bold">{g.complianceScore}%</strong>
                         </div>
                       </div>
                     </div>
-
-                    <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-2 shrink-0 md:text-right">
-                      <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider ${
-                        g.status === "active" 
-                          ? "bg-sky-50 border border-sky-200 text-sky-700" 
-                          : g.status === "completed" 
-                          ? "bg-emerald-50 border border-emerald-250 text-emerald-700" 
-                          : "bg-purple-50 border border-purple-250 text-purple-700"
-                      }`}>
-                        {g.status}
-                      </span>
-                      <div className="text-[10px] text-slate-450 mt-1">
-                        Compliance Index: <strong className="text-emerald-700 font-bold">{g.complianceScore}%</strong>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -235,7 +287,7 @@ export default function GrantManagementPage() {
                 <CheckCircle className="w-4.5 h-4.5 text-emerald-600 shrink-0 mt-0.5" />
                 <div className="text-xs">
                   <span className="block font-bold text-slate-800">COGS Expenditure Audit</span>
-                  <span className="block text-slate-500 mt-1">Receipt attachment verification matches Innovate UK R&D rules.</span>
+                  <span className="block text-slate-500 mt-1">Receipt attachment verification matches government funding guidelines.</span>
                 </div>
               </div>
 
@@ -243,7 +295,7 @@ export default function GrantManagementPage() {
                 <FolderLock className="w-4.5 h-4.5 text-violet-650 shrink-0 mt-0.5" />
                 <div className="text-xs">
                   <span className="block font-bold text-slate-800">Time-Tracking Log Locks</span>
-                  <span className="block text-slate-500 mt-1">Timesheets locked to prevent retro-adjustments to EU Horizon claims.</span>
+                  <span className="block text-slate-500 mt-1">Timesheets locked to prevent retro-adjustments to external claims.</span>
                 </div>
               </div>
             </div>
@@ -255,7 +307,7 @@ export default function GrantManagementPage() {
       {/* Add Funding Modal */}
       {showAddForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md p-6 bg-white border border-slate-200 rounded-2xl shadow-2xl space-y-5">
+          <div className="w-full max-w-md p-6 bg-white border border-slate-200 rounded-2xl shadow-2xl space-y-5 animate-in zoom-in-95 duration-150">
             <div className="flex justify-between items-center border-b border-slate-200 pb-3">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <Award className="w-5 h-5 text-violet-650" />
@@ -332,13 +384,13 @@ export default function GrantManagementPage() {
                 <button
                   type="button"
                   onClick={() => setShowAddForm(false)}
-                  className="px-4 py-2 border border-slate-200 text-slate-500 hover:text-slate-750 text-xs font-semibold rounded-lg cursor-pointer"
+                  className="px-4 py-2 border border-slate-200 text-slate-505 hover:text-slate-750 text-xs font-semibold rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg cursor-pointer transition-colors"
+                  className="px-4 py-2 bg-violet-650 hover:bg-violet-600 text-white text-xs font-semibold rounded-lg cursor-pointer transition-colors"
                 >
                   Create Program
                 </button>

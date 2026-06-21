@@ -78,6 +78,9 @@ export default function CustomersPage() {
   const [newAddrDefault, setNewAddrDefault] = useState(false);
   const [addingAddress, setAddingAddress] = useState(false);
 
+  // Aged Debt modal state
+  const [agedDebtCustomer, setAgedDebtCustomer] = useState<any | null>(null);
+
   useEffect(() => {
     if (token) {
       fetchCustomers();
@@ -359,6 +362,7 @@ export default function CustomersPage() {
                 <th className="py-3.5 px-5">Phone</th>
                 <th className="py-3.5 px-5">Currency</th>
                 <th className="py-3.5 px-5">Credit Term</th>
+                <th className="py-3.5 px-5">Outstanding Debt</th>
                 <th className="py-3.5 px-5 text-center">Status</th>
               </tr>
             </thead>
@@ -379,6 +383,21 @@ export default function CustomersPage() {
                   <td className="py-3 px-5 text-slate-600">{customer.phone}</td>
                   <td className="py-3 px-5 text-center font-bold text-slate-600">{customer.defaultCurrencyCode}</td>
                   <td className="py-3 px-5 text-slate-600 font-semibold">Net {customer.creditContractDays || 30} Days</td>
+                  <td className="py-3 px-5">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAgedDebtCustomer(customer);
+                      }}
+                      className={`px-3 py-1 rounded-xl text-xs font-mono font-bold transition-all border shadow-sm cursor-pointer ${
+                        (customer.totalDebt || 0) > 0
+                          ? "bg-rose-50 border-rose-200 text-rose-750 hover:bg-rose-100 hover:scale-105 active:scale-95"
+                          : "bg-slate-50 border-slate-200 text-slate-505 hover:bg-slate-100 hover:scale-105 active:scale-95"
+                      }`}
+                    >
+                      {(customer.totalDebt || 0).toLocaleString('en-GB', { style: 'currency', currency: customer.defaultCurrencyCode || 'GBP' })}
+                    </button>
+                  </td>
                   <td className="py-3 px-5 text-center">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold ${customer.isActive ? "bg-emerald-50 text-emerald-700 border border-emerald-250" : "bg-slate-100 text-slate-500 border border-slate-200"}`}>
                       {customer.isActive ? "Active" : "Inactive"}
@@ -938,6 +957,114 @@ export default function CustomersPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Aged Debt Breakdown Modal */}
+      {agedDebtCustomer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md p-6 bg-white border border-slate-200 rounded-3xl shadow-2xl space-y-6 relative overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Subtle top background gradient orb for premium look */}
+            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-rose-500/10 to-transparent pointer-events-none" />
+
+            {/* Header */}
+            <div className="flex items-center justify-between relative z-10">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center shadow-inner">
+                  <Coins className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest font-mono block">
+                    {agedDebtCustomer.customerRef}
+                  </span>
+                  <h3 className="text-sm font-bold text-slate-900 font-heading leading-tight">
+                    Aged Debt Analysis
+                  </h3>
+                </div>
+              </div>
+              <button
+                onClick={() => setAgedDebtCustomer(null)}
+                className="p-1.5 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 text-slate-500 hover:text-slate-800 rounded-xl cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Customer Info */}
+            <div className="bg-slate-50/70 border border-slate-150 p-4.5 rounded-2xl space-y-1 relative z-10">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Customer Name</span>
+              <span className="block font-bold text-slate-850 text-base">{agedDebtCustomer.name}</span>
+              <span className="block text-[11px] text-slate-500">{agedDebtCustomer.companyName}</span>
+            </div>
+
+            {/* Total Debt Card */}
+            <div className="p-5 bg-gradient-to-br from-rose-50 to-rose-100/50 border border-rose-200/60 rounded-2xl text-center shadow-sm relative z-10">
+              <span className="text-[10px] font-bold text-rose-700 uppercase tracking-widest block font-heading mb-1">
+                Total Outstanding Balance
+              </span>
+              <span className="text-3xl font-extrabold text-rose-800 font-mono tracking-tight">
+                {(agedDebtCustomer.totalDebt || 0).toLocaleString('en-GB', { 
+                  style: 'currency', 
+                  currency: agedDebtCustomer.defaultCurrencyCode || 'GBP' 
+                })}
+              </span>
+            </div>
+
+            {/* Aging Bands Breakdown */}
+            <div className="space-y-4.5 relative z-10">
+              <h4 className="text-[10px] font-bold text-slate-550 uppercase tracking-wider font-heading">
+                Aging Bands (Days Past Invoice Date)
+              </h4>
+
+              {(() => {
+                const bands = [
+                  { label: "Current (0-30 Days)", value: agedDebtCustomer.agedDebt?.current || 0, color: "bg-emerald-500" },
+                  { label: "31 - 60 Days", value: agedDebtCustomer.agedDebt?.over30 || 0, color: "bg-amber-500" },
+                  { label: "61 - 90 Days", value: agedDebtCustomer.agedDebt?.over60 || 0, color: "bg-orange-500" },
+                  { label: "90+ Days (Overdue)", value: agedDebtCustomer.agedDebt?.over90 || 0, color: "bg-rose-500" }
+                ];
+
+                const maxVal = Math.max(...bands.map(b => b.value), 1);
+
+                return (
+                  <div className="space-y-4 text-xs">
+                    {bands.map((band, idx) => {
+                      const pct = ((band.value / maxVal) * 100).toFixed(0);
+                      const formattedVal = band.value.toLocaleString('en-GB', { 
+                        style: 'currency', 
+                        currency: agedDebtCustomer.defaultCurrencyCode || 'GBP' 
+                      });
+
+                      return (
+                        <div key={idx} className="space-y-1.5">
+                          <div className="flex items-center justify-between text-slate-700 font-medium">
+                            <span>{band.label}</span>
+                            <span className="font-bold font-mono">{formattedVal}</span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-100 border border-slate-200/50 rounded-full overflow-hidden flex shadow-inner">
+                            <div 
+                              className={`${band.color} h-full rounded-full transition-all duration-500`}
+                              style={{ width: `${band.value > 0 ? pct : 0}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end pt-2 border-t border-slate-100 relative z-10">
+              <button
+                onClick={() => setAgedDebtCustomer(null)}
+                className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-2xl text-xs shadow-lg shadow-slate-950/10 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              >
+                Close Analysis
+              </button>
+            </div>
           </div>
         </div>
       )}

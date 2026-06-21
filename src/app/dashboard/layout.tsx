@@ -152,7 +152,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       icon: BookOpen,
       items: [
         { name: "Ledger Dashboard", href: "/dashboard/finance" },
-        { name: "Chart of Accounts", href: "/dashboard/finance/accounts" }
+        { name: "Chart of Accounts", href: "/dashboard/finance/accounts" },
+        { name: "Profit & Loss Statement", href: "/dashboard/finance/profit-loss" },
+        { name: "Balance Sheet Statement", href: "/dashboard/finance/balance-sheet" }
       ]
     },
     {
@@ -275,7 +277,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       icon: Sliders,
       items: [
         { name: "Marketplace Add-ons", href: "/dashboard/settings/plugins" },
-        { name: "Role Permissions (RBAC)", href: "/dashboard/settings/rbac" }
+        { name: "Role Permissions (RBAC)", href: "/dashboard/settings/rbac" },
+        { name: "Accounting Periods", href: "/dashboard/settings/periods" }
       ]
     }
   ];
@@ -759,6 +762,7 @@ function getModuleKeyForPath(path: string): string | null {
 
   if (path.startsWith("/dashboard/settings/rbac")) return "admin";
   if (path.startsWith("/dashboard/settings/plugins")) return "admin";
+  if (path.startsWith("/dashboard/settings/periods")) return "admin";
   if (path.startsWith("/dashboard/settings/pricing")) return "inventory";
 
   if (path === "/dashboard/finance" || path === "/dashboard/finance/") {
@@ -766,7 +770,8 @@ function getModuleKeyForPath(path: string): string | null {
   }
   if (path.startsWith("/dashboard/finance/accounts")) return "financials";
   if (path.startsWith("/dashboard/finance/vat")) return "financials";
-
+  if (path.startsWith("/dashboard/finance/profit-loss")) return "financials";
+  if (path.startsWith("/dashboard/finance/balance-sheet")) return "financials";
   if (path.startsWith("/dashboard/finance/reconciliation")) return "banking";
   if (path.startsWith("/dashboard/finance/close-management")) return "financials";
   if (path.startsWith("/dashboard/finance/payments")) return "banking";
