@@ -8,8 +8,11 @@ public class TaxRate
     public long TenantId { get; set; }
     public Tenant Tenant { get; set; } = null!;
 
-    public long CountryId { get; set; }
-    public Country Country { get; set; } = null!;
+    public long BaseCountryId { get; set; }
+    public Country BaseCountry { get; set; } = null!;
+
+    public long DeliveryCountryId { get; set; }
+    public Country DeliveryCountry { get; set; } = null!;
 
     public long TaxClassId { get; set; }
     public TaxClass TaxClass { get; set; } = null!;

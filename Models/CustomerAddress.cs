@@ -22,4 +22,6 @@ public class CustomerAddress
 
     public string AddressType { get; set; } = "Billing"; // "Billing" or "Shipping"
     public bool IsDefault { get; set; } = false;
+
+    public string? TaxCode { get; set; }
 }
