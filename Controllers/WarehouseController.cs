@@ -149,7 +149,7 @@ public class WarehouseController : ApiControllerBase
     [Authorize(Roles = "Warehouse,Sales,CompanyAdmin,GlobalAdmin")]
     public async Task<IActionResult> GetWarehouses()
     {
-        var warehouses = await _context.Warehouses.ToListAsync();
+        var warehouses = await _context.Warehouses.Include(w => w.Country).ToListAsync();
         return Ok(warehouses);
     }
 
@@ -321,7 +321,12 @@ public class WarehouseController : ApiControllerBase
         {
             Code = request.Code,
             Name = request.Name,
-            Address = request.Address
+            AddressLine1 = request.AddressLine1,
+            AddressLine2 = request.AddressLine2,
+            AddressLine3 = request.AddressLine3,
+            City = request.City,
+            PostalCode = request.PostalCode,
+            CountryId = request.CountryId
         };
         _context.Warehouses.Add(wh);
         await _context.SaveChangesAsync();
@@ -353,7 +358,12 @@ public class WarehouseController : ApiControllerBase
         }
         wh.Code = request.Code;
         wh.Name = request.Name;
-        wh.Address = request.Address;
+        wh.AddressLine1 = request.AddressLine1;
+        wh.AddressLine2 = request.AddressLine2;
+        wh.AddressLine3 = request.AddressLine3;
+        wh.City = request.City;
+        wh.PostalCode = request.PostalCode;
+        wh.CountryId = request.CountryId;
 
         await _context.SaveChangesAsync();
         return Ok(wh);
@@ -406,6 +416,11 @@ public class WarehouseController : ApiControllerBase
     {
         public string Code { get; set; } = null!;
         public string Name { get; set; } = null!;
-        public string? Address { get; set; }
+        public string AddressLine1 { get; set; } = null!;
+        public string? AddressLine2 { get; set; }
+        public string? AddressLine3 { get; set; }
+        public string City { get; set; } = null!;
+        public string PostalCode { get; set; } = null!;
+        public long? CountryId { get; set; }
     }
 }

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Nimbus.DatabaseStructures.Data;
 using Nimbus.DatabaseStructures.Models;
+using Nimbus.AdminApi.Services;
 
 namespace Nimbus.AdminApi.Controllers;
 
@@ -15,10 +16,30 @@ namespace Nimbus.AdminApi.Controllers;
 public class TaxController : ApiControllerBase
 {
     private readonly NimbusDbContext _context;
+    private readonly ISalesOrderService _salesOrderService;
 
-    public TaxController(NimbusDbContext context)
+    public TaxController(NimbusDbContext context, ISalesOrderService salesOrderService)
     {
         _context = context;
+        _salesOrderService = salesOrderService;
+    }
+
+    [HttpGet("resolve")]
+    [Authorize(Roles = "Accounts,Sales,CompanyAdmin,GlobalAdmin")]
+    public async Task<IActionResult> ResolveTaxRate(
+        [FromQuery] string customerName, 
+        [FromQuery] long stockItemId, 
+        [FromQuery] long? deliveryAddressId,
+        [FromQuery] string? deliveryCountryCode)
+    {
+        var stockItem = await _context.StockItems.FindAsync(stockItemId);
+        if (stockItem == null)
+        {
+            return NotFound("Stock item not found.");
+        }
+
+        var rate = await _salesOrderService.ResolveTaxRateForAddressAsync(customerName, stockItem, deliveryAddressId, deliveryCountryCode, 0.0m);
+        return Ok(new { rate });
     }
 
     [HttpGet("classes")]

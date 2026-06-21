@@ -26,6 +26,7 @@ public class CustomersController : ApiControllerBase
     {
         var customers = await _context.Customers
             .Include(c => c.Country)
+            .Include(c => c.ServedFromCountry)
             .Include(c => c.Addresses)
             .ThenInclude(a => a.Country)
             .OrderBy(c => c.CustomerRef)
@@ -61,6 +62,7 @@ public class CustomersController : ApiControllerBase
     {
         var customer = await _context.Customers
             .Include(c => c.Country)
+            .Include(c => c.ServedFromCountry)
             .Include(c => c.Addresses)
             .ThenInclude(a => a.Country)
             .FirstOrDefaultAsync(c => c.Id == id);
@@ -115,6 +117,7 @@ public class CustomersController : ApiControllerBase
             DefaultCurrencyCode = request.DefaultCurrencyCode,
             IsActive = true,
             CountryId = request.CountryId,
+            ServedFromCountryId = request.ServedFromCountryId,
             CreditContractDays = request.CreditContractDays
         };
 
@@ -164,6 +167,7 @@ public class CustomersController : ApiControllerBase
         customer.Phone = request.Phone;
         customer.DefaultCurrencyCode = request.DefaultCurrencyCode;
         customer.CountryId = request.CountryId;
+        customer.ServedFromCountryId = request.ServedFromCountryId;
         customer.IsActive = request.IsActive;
         customer.CreditContractDays = request.CreditContractDays;
 
@@ -209,6 +213,7 @@ public class CustomersController : ApiControllerBase
         public string Phone { get; set; } = null!;
         public string DefaultCurrencyCode { get; set; } = "GBP";
         public long? CountryId { get; set; }
+        public long? ServedFromCountryId { get; set; }
         public int CreditContractDays { get; set; } = 30;
         public List<AddressRequest>? Addresses { get; set; }
     }
@@ -247,6 +252,7 @@ public class CustomersController : ApiControllerBase
         public string Phone { get; set; } = null!;
         public string DefaultCurrencyCode { get; set; } = "GBP";
         public long? CountryId { get; set; }
+        public long? ServedFromCountryId { get; set; }
         public bool IsActive { get; set; }
         public int CreditContractDays { get; set; } = 30;
     }

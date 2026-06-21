@@ -76,7 +76,20 @@ public class SalesOrdersController : ApiControllerBase
         public string CustomerName { get; set; } = null!;
         public string CurrencyCode { get; set; } = "GBP";
         public decimal ExchangeRateToBase { get; set; } = 1.0m;
+        public long? DeliveryAddressId { get; set; }
+        public NewAddressDto? NewDeliveryAddress { get; set; }
         public SalesOrderLineRequest[] Lines { get; set; } = null!;
+    }
+
+    public class NewAddressDto
+    {
+        public string AddressName { get; set; } = null!;
+        public string AddressLine1 { get; set; } = null!;
+        public string? AddressLine2 { get; set; }
+        public string City { get; set; } = null!;
+        public string? State { get; set; }
+        public string PostalCode { get; set; } = null!;
+        public string CountryCode { get; set; } = null!;
     }
 
     public class SalesOrderLineRequest
@@ -85,5 +98,6 @@ public class SalesOrdersController : ApiControllerBase
         public decimal Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal TaxRate { get; set; }
+        public string UnitOfSale { get; set; } = null!;
     }
 }

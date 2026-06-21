@@ -9,4 +9,5 @@ public interface ISalesOrderService
 {
     Task<SalesOrder> CreateSalesOrderAsync(CreateSalesOrderRequest request, long creatorUserId);
     Task ApproveSalesOrderAsync(long id, long approverUserId);
+    Task<decimal> ResolveTaxRateForAddressAsync(string customerName, StockItem stockItem, long? deliveryAddressId, string? deliveryCountryCode = null, decimal requestedTaxRate = 0.0m);
 }
