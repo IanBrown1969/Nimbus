@@ -264,10 +264,17 @@ public class SalesOrderService : ISalesOrderService
                 deliveryCountryId = country?.Id;
             }
 
-            var baseCountries = await _context.Countries.Where(c => c.IsBaseCountry && c.IsActive).ToListAsync();
-            var baseCountry = baseCountries.FirstOrDefault() 
-                              ?? await _context.Countries.FirstOrDefaultAsync(c => c.Code == "GB");
-            baseCountryId = baseCountry?.Id;
+            if (customer != null && customer.ServedFromCountryId.HasValue)
+            {
+                baseCountryId = customer.ServedFromCountryId.Value;
+            }
+            else
+            {
+                var baseCountries = await _context.Countries.Where(c => c.IsBaseCountry && c.IsActive).ToListAsync();
+                var baseCountry = baseCountries.FirstOrDefault() 
+                                  ?? await _context.Countries.FirstOrDefaultAsync(c => c.Code == "GB");
+                baseCountryId = baseCountry?.Id;
+            }
         }
         else
         {
@@ -293,7 +300,14 @@ public class SalesOrderService : ISalesOrderService
                 }
             }
 
-            baseCountryId = deliveryCountryId;
+            if (customer != null && customer.ServedFromCountryId.HasValue)
+            {
+                baseCountryId = customer.ServedFromCountryId.Value;
+            }
+            else
+            {
+                baseCountryId = deliveryCountryId;
+            }
         }
 
         if (!baseCountryId.HasValue || !deliveryCountryId.HasValue)

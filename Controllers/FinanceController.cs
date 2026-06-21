@@ -559,10 +559,19 @@ public class FinanceController : ApiControllerBase
             return requestedTaxRate;
         }
 
-        var baseCountries = await _context.Countries.Where(c => c.IsBaseCountry && c.IsActive).ToListAsync();
-        var baseCountry = baseCountries.FirstOrDefault(bc => bc.Id == deliveryCountryId.Value) 
-                          ?? baseCountries.FirstOrDefault() 
-                          ?? await _context.Countries.FirstOrDefaultAsync(c => c.Code == "GB");
+        Country? baseCountry = null;
+        if (customer != null && customer.ServedFromCountryId.HasValue)
+        {
+            baseCountry = await _context.Countries.FindAsync(customer.ServedFromCountryId.Value);
+        }
+
+        if (baseCountry == null)
+        {
+            var baseCountries = await _context.Countries.Where(c => c.IsBaseCountry && c.IsActive).ToListAsync();
+            baseCountry = baseCountries.FirstOrDefault(bc => bc.Id == deliveryCountryId.Value) 
+                              ?? baseCountries.FirstOrDefault() 
+                              ?? await _context.Countries.FirstOrDefaultAsync(c => c.Code == "GB");
+        }
 
         if (baseCountry == null)
         {
