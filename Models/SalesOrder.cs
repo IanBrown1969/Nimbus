@@ -34,5 +34,8 @@ public long TenantId { get; set; }
     public long? CreatedByUserId { get; set; }
     public User? CreatedByUser { get; set; }
 
+    public long? DeliveryAddressId { get; set; }
+    public CustomerAddress? DeliveryAddress { get; set; }
+
     public ICollection<SalesOrderLine> Lines { get; set; } = new List<SalesOrderLine>();
 }

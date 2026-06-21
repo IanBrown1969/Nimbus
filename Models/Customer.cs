@@ -30,6 +30,9 @@ public class Customer
     public long? CountryId { get; set; }
     public Country? Country { get; set; }
 
+    public long? ServedFromCountryId { get; set; }
+    public Country? ServedFromCountry { get; set; }
+
     public ICollection<CustomerAddress> Addresses { get; set; } = new List<CustomerAddress>();
 
     [NotMapped]

@@ -485,20 +485,20 @@ public static class DbInitializer
 
             // Migrate TaxRates to allow NULL for DeliveryCountryId and add DeliveryZoneId
             context.Database.ExecuteSqlRaw(@"
+                -- Drop the old unique index if it exists, to avoid conflicts with multiple NULL delivery countries
+                IF EXISTS (
+                    SELECT * FROM sys.indexes 
+                    WHERE name = N'IX_TaxRates_TenantId_BaseCountryId_DeliveryCountryId_TaxClassId' AND object_id = OBJECT_ID(N'[dbo].[TaxRates]')
+                )
+                BEGIN
+                    DROP INDEX [IX_TaxRates_TenantId_BaseCountryId_DeliveryCountryId_TaxClassId] ON [dbo].[TaxRates];
+                END
+
                 -- Ensure DeliveryCountryId is nullable
                 DECLARE @IsNullableDelivery BIT;
                 SELECT @IsNullableDelivery = is_nullable FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[TaxRates]') AND name = N'DeliveryCountryId';
                 IF @IsNullableDelivery = 0
                 BEGIN
-                    -- Drop the old unique index first since it depends on DeliveryCountryId
-                    IF EXISTS (
-                        SELECT * FROM sys.indexes 
-                        WHERE name = N'IX_TaxRates_TenantId_BaseCountryId_DeliveryCountryId_TaxClassId' AND object_id = OBJECT_ID(N'[dbo].[TaxRates]')
-                    )
-                    BEGIN
-                        DROP INDEX [IX_TaxRates_TenantId_BaseCountryId_DeliveryCountryId_TaxClassId] ON [dbo].[TaxRates];
-                    END
-
                     ALTER TABLE [dbo].[TaxRates] ALTER COLUMN [DeliveryCountryId] BIGINT NULL;
                 END
 
@@ -519,16 +519,69 @@ public static class DbInitializer
                     WHERE name = N'IX_TaxRates_TenantId_BaseCountryId_DeliveryCountryId_DeliveryZoneId_TaxClassId' AND object_id = OBJECT_ID(N'[dbo].[TaxRates]')
                 )
                 BEGIN
-                    IF EXISTS (
-                        SELECT * FROM sys.indexes 
-                        WHERE name = N'IX_TaxRates_TenantId_BaseCountryId_DeliveryCountryId_TaxClassId' AND object_id = OBJECT_ID(N'[dbo].[TaxRates]')
-                    )
-                    BEGIN
-                        DROP INDEX [IX_TaxRates_TenantId_BaseCountryId_DeliveryCountryId_TaxClassId] ON [dbo].[TaxRates];
-                    END
-
                     CREATE UNIQUE INDEX [IX_TaxRates_TenantId_BaseCountryId_DeliveryCountryId_DeliveryZoneId_TaxClassId] 
                     ON [dbo].[TaxRates] ([TenantId], [BaseCountryId], [DeliveryCountryId], [DeliveryZoneId], [TaxClassId]);
+                END
+            ");
+
+            context.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (
+                    SELECT * FROM sys.columns 
+                    WHERE object_id = OBJECT_ID(N'[dbo].[SalesOrders]') 
+                    AND name = N'DeliveryAddressId'
+                )
+                BEGIN
+                    ALTER TABLE [dbo].[SalesOrders] ADD [DeliveryAddressId] BIGINT NULL;
+                    ALTER TABLE [dbo].[SalesOrders] ADD CONSTRAINT [FK_SalesOrders_CustomerAddresses_DeliveryAddressId] FOREIGN KEY ([DeliveryAddressId]) REFERENCES [dbo].[CustomerAddresses] ([Id]);
+                END
+            ");
+
+            context.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (
+                    SELECT * FROM sys.columns 
+                    WHERE object_id = OBJECT_ID(N'[dbo].[SalesOrderLines]') 
+                    AND name = N'UnitOfSale'
+                )
+                BEGIN
+                    ALTER TABLE [dbo].[SalesOrderLines] ADD [UnitOfSale] NVARCHAR(100) NOT NULL DEFAULT 'Each';
+                END
+            ");
+
+            context.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (
+                    SELECT * FROM sys.columns 
+                    WHERE object_id = OBJECT_ID(N'[dbo].[Customers]') 
+                    AND name = N'ServedFromCountryId'
+                )
+                BEGIN
+                    ALTER TABLE [dbo].[Customers] ADD [ServedFromCountryId] BIGINT NULL;
+                    ALTER TABLE [dbo].[Customers] ADD CONSTRAINT [FK_Customers_Countries_ServedFromCountryId] FOREIGN KEY ([ServedFromCountryId]) REFERENCES [dbo].[Countries] ([Id]);
+                END
+            ");
+
+            context.Database.ExecuteSqlRaw(@"
+                IF EXISTS (
+                    SELECT * FROM sys.columns 
+                    WHERE object_id = OBJECT_ID(N'[dbo].[Warehouses]') 
+                    AND name = N'Address'
+                )
+                BEGIN
+                    ALTER TABLE [dbo].[Warehouses] DROP COLUMN [Address];
+                END
+
+                IF NOT EXISTS (
+                    SELECT * FROM sys.columns 
+                    WHERE object_id = OBJECT_ID(N'[dbo].[Warehouses]') 
+                    AND name = N'AddressLine1'
+                )
+                BEGIN
+                    ALTER TABLE [dbo].[Warehouses] ADD [AddressLine1] NVARCHAR(200) NOT NULL DEFAULT '';
+                    ALTER TABLE [dbo].[Warehouses] ADD [AddressLine2] NVARCHAR(200) NULL;
+                    ALTER TABLE [dbo].[Warehouses] ADD [AddressLine3] NVARCHAR(200) NULL;
+                    ALTER TABLE [dbo].[Warehouses] ADD [City] NVARCHAR(100) NOT NULL DEFAULT '';
+                    ALTER TABLE [dbo].[Warehouses] ADD [PostalCode] NVARCHAR(50) NOT NULL DEFAULT '';
+                    ALTER TABLE [dbo].[Warehouses] ADD [CountryId] BIGINT NULL;
+                    ALTER TABLE [dbo].[Warehouses] ADD CONSTRAINT [FK_Warehouses_Countries_CountryId] FOREIGN KEY ([CountryId]) REFERENCES [dbo].[Countries] ([Id]);
                 END
             ");
         }
@@ -738,8 +791,24 @@ public static class DbInitializer
         Warehouse whWest = null!;
         if (!context.Warehouses.Any())
         {
-            whMain = new Warehouse { TenantId = tenant.Id, Code = "WH-MAIN", Name = "Main Distribution Centre", Address = "10 Warehouse Way, London" };
-            whWest = new Warehouse { TenantId = tenant.Id, Code = "WH-WEST", Name = "West Coast Depot", Address = "50 Ocean Drive, Bristol" };
+            whMain = new Warehouse 
+            { 
+                TenantId = tenant.Id, 
+                Code = "WH-MAIN", 
+                Name = "Main Distribution Centre", 
+                AddressLine1 = "10 Warehouse Way", 
+                City = "London", 
+                PostalCode = "EC1A 1BB" 
+            };
+            whWest = new Warehouse 
+            { 
+                TenantId = tenant.Id, 
+                Code = "WH-WEST", 
+                Name = "West Coast Depot", 
+                AddressLine1 = "50 Ocean Drive", 
+                City = "Bristol", 
+                PostalCode = "BS1 6JX" 
+            };
             context.Warehouses.AddRange(whMain, whWest);
             context.SaveChanges();
         }
@@ -818,6 +887,16 @@ public static class DbInitializer
         gb = context.Countries.First(c => c.Code == "GB");
         fr = context.Countries.First(c => c.Code == "FR");
         de = context.Countries.First(c => c.Code == "DE");
+
+        var whsToUpdate = context.Warehouses.Where(w => (w.Code == "WH-MAIN" || w.Code == "WH-WEST") && w.CountryId == null).ToList();
+        if (whsToUpdate.Any())
+        {
+            foreach (var wh in whsToUpdate)
+            {
+                wh.CountryId = gb.Id;
+            }
+            context.SaveChanges();
+        }
 
         if (!context.TaxClasses.Any())
         {
