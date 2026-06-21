@@ -29,7 +29,9 @@ public class SalesOrdersController : ApiControllerBase
     {
         var orders = await _context.SalesOrders
             .Include(s => s.Lines)
-            .ThenInclude(l => l.StockItem)
+                .ThenInclude(l => l.StockItem)
+            .Include(s => s.DeliveryAddress)
+                .ThenInclude(a => a.Country)
             .OrderByDescending(s => s.OrderDate)
             .ToListAsync();
         return Ok(orders);

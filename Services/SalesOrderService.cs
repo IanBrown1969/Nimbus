@@ -233,7 +233,22 @@ public class SalesOrderService : ISalesOrderService
     public async Task<decimal> ResolveTaxRateForAddressAsync(string customerName, StockItem stockItem, long? deliveryAddressId, string? deliveryCountryCode = null, decimal requestedTaxRate = 0.0m)
     {
         var isVatPluginActive = await _context.TenantPlugins.AnyAsync(tp => tp.Plugin.Code == "VAT" && tp.IsActive);
-        if (!isVatPluginActive || !stockItem.TaxClassId.HasValue)
+        if (!isVatPluginActive)
+        {
+            return requestedTaxRate;
+        }
+
+        long? taxClassId = stockItem.TaxClassId;
+        if (!taxClassId.HasValue)
+        {
+            var stdClass = await _context.TaxClasses.FirstOrDefaultAsync(tc => tc.Code == "STD");
+            if (stdClass != null)
+            {
+                taxClassId = stdClass.Id;
+            }
+        }
+
+        if (!taxClassId.HasValue)
         {
             return requestedTaxRate;
         }
@@ -312,7 +327,7 @@ public class SalesOrderService : ISalesOrderService
 
         if (!baseCountryId.HasValue || !deliveryCountryId.HasValue)
         {
-            return requestedTaxRate;
+            return 0.0m;
         }
 
         var baseCountryEntity = await _context.Countries.FindAsync(baseCountryId.Value);
@@ -320,21 +335,16 @@ public class SalesOrderService : ISalesOrderService
 
         if (baseCountryEntity == null || deliveryCountryEntity == null)
         {
-            return requestedTaxRate;
+            return 0.0m;
         }
 
         // Determine delivery country zone fallback to Rest of the World
         long? deliveryZoneId = null;
         if (deliveryCountryEntity.TaxZoneId.HasValue)
         {
-            var zone = await _context.TaxZones.FindAsync(deliveryCountryEntity.TaxZoneId.Value);
-            if (zone != null && (zone.Name == "EU Tax Zone" || zone.Name == "UK Tax Zone"))
-            {
-                deliveryZoneId = deliveryCountryEntity.TaxZoneId.Value;
-            }
+            deliveryZoneId = deliveryCountryEntity.TaxZoneId.Value;
         }
-
-        if (deliveryZoneId == null)
+        else
         {
             var rotwZone = await _context.TaxZones
                 .FirstOrDefaultAsync(z => z.Name == "Rest of the World" || z.Name.Contains("Rest of the World"));
@@ -350,17 +360,17 @@ public class SalesOrderService : ISalesOrderService
             var rateRule = await _context.TaxRates
                 .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountryEntity.Id && 
                                           r.DeliveryCountryId == deliveryCountryEntity.Id && 
-                                          r.TaxClassId == stockItem.TaxClassId.Value);
+                                          r.TaxClassId == taxClassId.Value);
 
             if (rateRule == null && deliveryZoneId.HasValue)
             {
                 rateRule = await _context.TaxRates
                     .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountryEntity.Id && 
                                               r.DeliveryZoneId == deliveryZoneId.Value && 
-                                              r.TaxClassId == stockItem.TaxClassId.Value);
+                                              r.TaxClassId == taxClassId.Value);
             }
 
-            return rateRule?.Rate ?? requestedTaxRate;
+            return rateRule?.Rate ?? 0.0m;
         }
 
         // Rule 2: Cross-Border Sale (Base Country != Delivery Country)
@@ -371,8 +381,8 @@ public class SalesOrderService : ISalesOrderService
 
         var crossBorderRule = await _context.TaxRates
             .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountryEntity.Id && 
-                                      r.DeliveryCountryId == deliveryCountryEntity.Id && 
-                                      r.TaxClassId == stockItem.TaxClassId.Value);
+                                       r.DeliveryCountryId == deliveryCountryEntity.Id && 
+                                       r.TaxClassId == taxClassId.Value);
 
         if (crossBorderRule != null)
         {
@@ -384,7 +394,7 @@ public class SalesOrderService : ISalesOrderService
             var zoneRule = await _context.TaxRates
                 .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountryEntity.Id && 
                                           r.DeliveryZoneId == deliveryZoneId.Value && 
-                                          r.TaxClassId == stockItem.TaxClassId.Value);
+                                          r.TaxClassId == taxClassId.Value);
             if (zoneRule != null)
             {
                 return zoneRule.Rate;
@@ -394,21 +404,17 @@ public class SalesOrderService : ISalesOrderService
         // Fallback to base country domestic tax
         var fallbackRule = await _context.TaxRates
             .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountryEntity.Id && 
-                                      r.DeliveryCountryId == baseCountryEntity.Id && 
-                                      r.TaxClassId == stockItem.TaxClassId.Value);
+                                       r.DeliveryCountryId == baseCountryEntity.Id && 
+                                       r.TaxClassId == taxClassId.Value);
 
         if (fallbackRule == null)
         {
             long? baseZoneId = null;
             if (baseCountryEntity.TaxZoneId.HasValue)
             {
-                var zone = await _context.TaxZones.FindAsync(baseCountryEntity.TaxZoneId.Value);
-                if (zone != null && (zone.Name == "EU Tax Zone" || zone.Name == "UK Tax Zone"))
-                {
-                    baseZoneId = baseCountryEntity.TaxZoneId.Value;
-                }
+                baseZoneId = baseCountryEntity.TaxZoneId.Value;
             }
-            if (baseZoneId == null)
+            else
             {
                 var rotwZone = await _context.TaxZones
                     .FirstOrDefaultAsync(z => z.Name == "Rest of the World" || z.Name.Contains("Rest of the World"));
@@ -423,10 +429,165 @@ public class SalesOrderService : ISalesOrderService
                 fallbackRule = await _context.TaxRates
                     .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountryEntity.Id && 
                                               r.DeliveryZoneId == baseZoneId.Value && 
-                                              r.TaxClassId == stockItem.TaxClassId.Value);
+                                              r.TaxClassId == taxClassId.Value);
             }
         }
 
-        return fallbackRule?.Rate ?? requestedTaxRate;
+        return fallbackRule?.Rate ?? 0.0m;
+    }
+
+    public async Task<List<TaxOptionDto>> GetTaxOptionsForAddressAsync(string customerName, long? deliveryAddressId, string? deliveryCountryCode = null)
+    {
+        var isVatPluginActive = await _context.TenantPlugins.AnyAsync(tp => tp.Plugin.Code == "VAT" && tp.IsActive);
+        if (!isVatPluginActive)
+        {
+            return new List<TaxOptionDto>
+            {
+                new TaxOptionDto { Rate = 0.20m, ClassCode = "STD", ClassName = "20% Standard" },
+                new TaxOptionDto { Rate = 0.05m, ClassCode = "RED", ClassName = "5% Reduced" },
+                new TaxOptionDto { Rate = 0.00m, ClassCode = "ZERO", ClassName = "0% Zero-Rate" }
+            };
+        }
+
+        var customer = await _context.Customers
+            .FirstOrDefaultAsync(c => c.Name == customerName || c.CompanyName == customerName);
+
+        long? baseCountryId = null;
+        long? deliveryCountryId = null;
+        CustomerAddress? shippingAddress = null;
+
+        if (deliveryAddressId.HasValue || !string.IsNullOrEmpty(deliveryCountryCode))
+        {
+            if (deliveryAddressId.HasValue)
+            {
+                shippingAddress = await _context.CustomerAddresses
+                    .Include(a => a.Country)
+                    .FirstOrDefaultAsync(a => a.Id == deliveryAddressId.Value);
+
+                if (shippingAddress != null)
+                {
+                    deliveryCountryId = shippingAddress.CountryId;
+                }
+            }
+            else
+            {
+                var country = await _context.Countries.FirstOrDefaultAsync(c => c.Code == deliveryCountryCode);
+                deliveryCountryId = country?.Id;
+            }
+
+            if (customer != null && customer.ServedFromCountryId.HasValue)
+            {
+                baseCountryId = customer.ServedFromCountryId.Value;
+            }
+            else
+            {
+                var baseCountries = await _context.Countries.Where(c => c.IsBaseCountry && c.IsActive).ToListAsync();
+                var baseCountry = baseCountries.FirstOrDefault() 
+                                  ?? await _context.Countries.FirstOrDefaultAsync(c => c.Code == "GB");
+                baseCountryId = baseCountry?.Id;
+            }
+        }
+        else
+        {
+            // No delivery address chosen - fall back to billing address
+            if (customer != null)
+            {
+                var billingAddress = await _context.CustomerAddresses
+                    .FirstOrDefaultAsync(a => a.CustomerId == customer.Id && a.AddressType == "Billing" && a.IsDefault);
+                if (billingAddress == null)
+                {
+                    billingAddress = await _context.CustomerAddresses
+                        .FirstOrDefaultAsync(a => a.CustomerId == customer.Id && a.AddressType == "Billing");
+                }
+                deliveryCountryId = billingAddress?.CountryId ?? customer.CountryId;
+            }
+            else
+            {
+                var contact = await _context.Contacts
+                    .FirstOrDefaultAsync(c => c.Name == customerName || c.CompanyName == customerName);
+                if (contact != null)
+                {
+                    deliveryCountryId = contact.CountryId;
+                }
+            }
+
+            if (customer != null && customer.ServedFromCountryId.HasValue)
+            {
+                baseCountryId = customer.ServedFromCountryId.Value;
+            }
+            else
+            {
+                baseCountryId = deliveryCountryId;
+            }
+        }
+
+        if (!baseCountryId.HasValue || !deliveryCountryId.HasValue)
+        {
+            return new List<TaxOptionDto> { new TaxOptionDto { Rate = 0.00m, ClassCode = "ZERO", ClassName = "0% Zero-Rate" } };
+        }
+
+        var baseCountryEntity = await _context.Countries.FindAsync(baseCountryId.Value);
+        var deliveryCountryEntity = await _context.Countries.FindAsync(deliveryCountryId.Value);
+
+        if (baseCountryEntity == null || deliveryCountryEntity == null)
+        {
+            return new List<TaxOptionDto> { new TaxOptionDto { Rate = 0.00m, ClassCode = "ZERO", ClassName = "0% Zero-Rate" } };
+        }
+
+        // Determine delivery country zone
+        long? deliveryZoneId = null;
+        if (deliveryCountryEntity.TaxZoneId.HasValue)
+        {
+            deliveryZoneId = deliveryCountryEntity.TaxZoneId.Value;
+        }
+        else
+        {
+            var rotwZone = await _context.TaxZones
+                .FirstOrDefaultAsync(z => z.Name == "Rest of the World" || z.Name.Contains("Rest of the World"));
+            if (rotwZone != null)
+            {
+                deliveryZoneId = rotwZone.Id;
+            }
+        }
+
+        // Now query all tax rates for this base country and delivery country / zone
+        var rates = await _context.TaxRates
+            .Include(r => r.TaxClass)
+            .Where(r => r.BaseCountryId == baseCountryEntity.Id && 
+                       (r.DeliveryCountryId == deliveryCountryEntity.Id || 
+                        (deliveryZoneId.HasValue && r.DeliveryZoneId == deliveryZoneId.Value)))
+            .ToListAsync();
+
+        // If cross-border and shipping address has a tax code (VAT ID), all rates become zero-rated
+        if (baseCountryEntity.Id != deliveryCountryEntity.Id && shippingAddress != null && !string.IsNullOrWhiteSpace(shippingAddress.TaxCode))
+        {
+            return new List<TaxOptionDto>
+            {
+                new TaxOptionDto { Rate = 0.00m, ClassCode = "ZERO", ClassName = "0% Zero-Rate" }
+            };
+        }
+
+        if (!rates.Any())
+        {
+            // Default to no tax where nothing is setup
+            return new List<TaxOptionDto>
+            {
+                new TaxOptionDto { Rate = 0.00m, ClassCode = "ZERO", ClassName = "0% Zero-Rate" }
+            };
+        }
+
+        // Map rates to options DTO
+        var options = rates.Select(r => new TaxOptionDto
+        {
+            Rate = r.Rate,
+            ClassCode = r.TaxClass.Code,
+            ClassName = $"{(r.Rate * 100).ToString("0.##")}% {r.TaxClass.Name}"
+        })
+        .GroupBy(o => o.Rate) // avoid duplicate rates
+        .Select(g => g.First())
+        .OrderByDescending(o => o.Rate)
+        .ToList();
+
+        return options;
     }
 }

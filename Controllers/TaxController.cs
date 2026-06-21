@@ -42,6 +42,21 @@ public class TaxController : ApiControllerBase
         return Ok(new { rate });
     }
 
+    [HttpGet("options")]
+    [Authorize(Roles = "Accounts,Sales,CompanyAdmin,GlobalAdmin")]
+    public async Task<IActionResult> GetTaxOptions(
+        [FromQuery] string customerName,
+        [FromQuery] long? deliveryAddressId,
+        [FromQuery] string? deliveryCountryCode)
+    {
+        if (string.IsNullOrWhiteSpace(customerName))
+        {
+            return BadRequest("Customer name is required.");
+        }
+        var options = await _salesOrderService.GetTaxOptionsForAddressAsync(customerName, deliveryAddressId, deliveryCountryCode);
+        return Ok(options);
+    }
+
     [HttpGet("classes")]
     [Authorize(Roles = "Accounts,CompanyAdmin,GlobalAdmin")]
     public async Task<IActionResult> GetTaxClasses()

@@ -522,7 +522,22 @@ public class FinanceController : ApiControllerBase
     private async Task<decimal> ResolveTaxRateAsync(string customerName, StockItem stockItem, decimal requestedTaxRate)
     {
         var isVatPluginActive = await _context.TenantPlugins.AnyAsync(tp => tp.Plugin.Code == "VAT" && tp.IsActive);
-        if (!isVatPluginActive || !stockItem.TaxClassId.HasValue)
+        if (!isVatPluginActive)
+        {
+            return requestedTaxRate;
+        }
+
+        long? taxClassId = stockItem.TaxClassId;
+        if (!taxClassId.HasValue)
+        {
+            var stdClass = await _context.TaxClasses.FirstOrDefaultAsync(tc => tc.Code == "STD");
+            if (stdClass != null)
+            {
+                taxClassId = stdClass.Id;
+            }
+        }
+
+        if (!taxClassId.HasValue)
         {
             return requestedTaxRate;
         }
@@ -556,7 +571,7 @@ public class FinanceController : ApiControllerBase
 
         if (!deliveryCountryId.HasValue)
         {
-            return requestedTaxRate;
+            return 0.0m;
         }
 
         Country? baseCountry = null;
@@ -575,27 +590,22 @@ public class FinanceController : ApiControllerBase
 
         if (baseCountry == null)
         {
-            return requestedTaxRate;
+            return 0.0m;
         }
 
         var deliveryCountry = await _context.Countries.FindAsync(deliveryCountryId.Value);
         if (deliveryCountry == null)
         {
-            return requestedTaxRate;
+            return 0.0m;
         }
 
         // Determine delivery country zone fallback to Rest of the World
         long? deliveryZoneId = null;
         if (deliveryCountry.TaxZoneId.HasValue)
         {
-            var zone = await _context.TaxZones.FindAsync(deliveryCountry.TaxZoneId.Value);
-            if (zone != null && (zone.Name == "EU Tax Zone" || zone.Name == "UK Tax Zone"))
-            {
-                deliveryZoneId = deliveryCountry.TaxZoneId.Value;
-            }
+            deliveryZoneId = deliveryCountry.TaxZoneId.Value;
         }
-
-        if (deliveryZoneId == null)
+        else
         {
             var rotwZone = await _context.TaxZones
                 .FirstOrDefaultAsync(z => z.Name == "Rest of the World" || z.Name.Contains("Rest of the World"));
@@ -613,17 +623,17 @@ public class FinanceController : ApiControllerBase
             var rateRule = await _context.TaxRates
                 .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && 
                                           r.DeliveryCountryId == deliveryCountry.Id && 
-                                          r.TaxClassId == stockItem.TaxClassId.Value);
+                                          r.TaxClassId == taxClassId.Value);
 
             if (rateRule == null && deliveryZoneId.HasValue)
             {
                 rateRule = await _context.TaxRates
                     .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && 
                                               r.DeliveryZoneId == deliveryZoneId.Value && 
-                                              r.TaxClassId == stockItem.TaxClassId.Value);
+                                              r.TaxClassId == taxClassId.Value);
             }
 
-            return rateRule?.Rate ?? requestedTaxRate;
+            return rateRule?.Rate ?? 0.0m;
         }
 
         // Rule 2: Cross-Border Sale (Base Country != Delivery Country)
@@ -637,7 +647,7 @@ public class FinanceController : ApiControllerBase
         var crossBorderRule = await _context.TaxRates
             .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && 
                                       r.DeliveryCountryId == deliveryCountry.Id && 
-                                      r.TaxClassId == stockItem.TaxClassId.Value);
+                                      r.TaxClassId == taxClassId.Value);
 
         if (crossBorderRule != null)
         {
@@ -649,7 +659,7 @@ public class FinanceController : ApiControllerBase
             var zoneRule = await _context.TaxRates
                 .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && 
                                           r.DeliveryZoneId == deliveryZoneId.Value && 
-                                          r.TaxClassId == stockItem.TaxClassId.Value);
+                                          r.TaxClassId == taxClassId.Value);
             if (zoneRule != null)
             {
                 return zoneRule.Rate;
@@ -660,20 +670,16 @@ public class FinanceController : ApiControllerBase
         var fallbackRule = await _context.TaxRates
             .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && 
                                       r.DeliveryCountryId == baseCountry.Id && 
-                                      r.TaxClassId == stockItem.TaxClassId.Value);
+                                      r.TaxClassId == taxClassId.Value);
 
         if (fallbackRule == null)
         {
             long? baseZoneId = null;
             if (baseCountry.TaxZoneId.HasValue)
             {
-                var zone = await _context.TaxZones.FindAsync(baseCountry.TaxZoneId.Value);
-                if (zone != null && (zone.Name == "EU Tax Zone" || zone.Name == "UK Tax Zone"))
-                {
-                    baseZoneId = baseCountry.TaxZoneId.Value;
-                }
+                baseZoneId = baseCountry.TaxZoneId.Value;
             }
-            if (baseZoneId == null)
+            else
             {
                 var rotwZone = await _context.TaxZones
                     .FirstOrDefaultAsync(z => z.Name == "Rest of the World" || z.Name.Contains("Rest of the World"));
@@ -688,10 +694,10 @@ public class FinanceController : ApiControllerBase
                 fallbackRule = await _context.TaxRates
                     .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && 
                                               r.DeliveryZoneId == baseZoneId.Value && 
-                                              r.TaxClassId == stockItem.TaxClassId.Value);
+                                              r.TaxClassId == taxClassId.Value);
             }
         }
 
-        return fallbackRule?.Rate ?? requestedTaxRate;
+        return fallbackRule?.Rate ?? 0.0m;
     }
 }
