@@ -19,5 +19,5 @@ public long SalesOrderId { get; set; }
     public decimal NetAmount => Quantity * UnitPrice;
     public decimal GrossAmount => NetAmount + TaxAmount;
 
-    public string UnitOfSale { get; set; } = null!;
+    public string UnitOfSale { get; set; } = "Each";
 }
