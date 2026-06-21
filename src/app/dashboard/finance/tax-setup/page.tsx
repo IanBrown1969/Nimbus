@@ -98,7 +98,33 @@ export default function TaxSetupPage() {
     const [editClassName, setEditClassName] = useState("");
     const [isSavingClass, setIsSavingClass] = useState(false);
 
+    // Custom Deletion Confirmation State
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+    }>({
+        isOpen: false,
+        title: "",
+        message: "",
+        onConfirm: () => {}
+    });
+
+    const requestConfirm = (title: string, message: string, onConfirm: () => void) => {
+        setConfirmModal({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                onConfirm();
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+            }
+        });
+    };
+
     const isAdmin = user?.role === "CompanyAdmin" || user?.role === "GlobalAdmin";
+    const canManageTax = isAdmin || user?.role === "Accounts";
 
     useEffect(() => {
         if (token) {
@@ -154,7 +180,7 @@ export default function TaxSetupPage() {
 
     const handleCreateZone = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isAdmin || !newZoneName.trim()) return;
+        if (!canManageTax || !newZoneName.trim()) return;
 
         setIsCreatingZone(true);
         setError(null);
@@ -176,25 +202,29 @@ export default function TaxSetupPage() {
         }
     };
 
-    const handleDeleteZone = async (id: number) => {
-        if (!isAdmin) return;
-        if (!confirm("Are you sure you want to delete this tax zone? Countries mapped to it will be unassigned.")) return;
-
-        setError(null);
-        try {
-            await axios.delete(`http://localhost:5000/api/finance/tax/zones/${id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setZones(zones.filter(z => z.id !== id));
-            showSuccess("Tax Zone deleted successfully.");
-        } catch (err: any) {
-            setError("Failed to delete tax zone.");
-        }
+    const handleDeleteZone = (id: number) => {
+        if (!canManageTax) return;
+        requestConfirm(
+            "Delete Tax Zone",
+            "Are you sure you want to delete this tax zone? Countries mapped to it will be unassigned.",
+            async () => {
+                setError(null);
+                try {
+                    await axios.delete(`http://localhost:5000/api/finance/tax/zones/${id}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    setZones(zones.filter(z => z.id !== id));
+                    showSuccess("Tax Zone deleted successfully.");
+                } catch (err: any) {
+                    setError("Failed to delete tax zone.");
+                }
+            }
+        );
     };
 
     const handleCreateRate = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isAdmin || newRateBaseId === "" || newRateClassId === "" || newRatePercent === "") return;
+        if (!canManageTax || newRateBaseId === "" || newRateClassId === "" || newRatePercent === "") return;
 
         const isCountry = newRateDestType === "country";
         if (isCountry && newRateDeliveryId === "") return;
@@ -222,20 +252,24 @@ export default function TaxSetupPage() {
         }
     };
 
-    const handleDeleteRate = async (id: number) => {
-        if (!isAdmin) return;
-        if (!confirm("Are you sure you want to delete this tax rate rule?")) return;
-
-        setError(null);
-        try {
-            await axios.delete(`http://localhost:5000/api/finance/tax/rates/${id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setRates(rates.filter(r => r.id !== id));
-            showSuccess("Tax Rate rule deleted successfully.");
-        } catch (err: any) {
-            setError("Failed to delete tax rate rule.");
-        }
+    const handleDeleteRate = (id: number) => {
+        if (!canManageTax) return;
+        requestConfirm(
+            "Delete Tax Rate Rule",
+            "Are you sure you want to delete this tax rate rule?",
+            async () => {
+                setError(null);
+                try {
+                    await axios.delete(`http://localhost:5000/api/finance/tax/rates/${id}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    setRates(rates.filter(r => r.id !== id));
+                    showSuccess("Tax Rate rule deleted successfully.");
+                } catch (err: any) {
+                    setError("Failed to delete tax rate rule.");
+                }
+            }
+        );
     };
 
     const openEditZone = (zone: TaxZone) => {
@@ -256,7 +290,7 @@ export default function TaxSetupPage() {
 
     const handleUpdateZone = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isAdmin || !editingZone || !editZoneName.trim()) return;
+        if (!canManageTax || !editingZone || !editZoneName.trim()) return;
 
         setIsSavingZone(true);
         setError(null);
@@ -297,7 +331,7 @@ export default function TaxSetupPage() {
 
     const handleUpdateRate = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isAdmin || !editingRate || editRateBaseId === "" || editRateClassId === "" || editRatePercent === "") return;
+        if (!canManageTax || !editingRate || editRateBaseId === "" || editRateClassId === "" || editRatePercent === "") return;
 
         const isCountry = editRateDestType === "country";
         if (isCountry && editRateDeliveryId === "") return;
@@ -327,7 +361,7 @@ export default function TaxSetupPage() {
     };
 
     const handleToggleBaseCountry = async (id: number) => {
-        if (!isAdmin) return;
+        if (!canManageTax) return;
         try {
             const res = await axios.post(`http://localhost:5000/api/countries/${id}/toggle-base`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -343,7 +377,7 @@ export default function TaxSetupPage() {
 
     const handleCreateClass = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isAdmin || !newClassCode.trim() || !newClassName.trim()) return;
+        if (!canManageTax || !newClassCode.trim() || !newClassName.trim()) return;
 
         setIsCreatingClass(true);
         setError(null);
@@ -373,7 +407,7 @@ export default function TaxSetupPage() {
 
     const handleUpdateClass = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isAdmin || !editingClass || !editClassCode.trim() || !editClassName.trim()) return;
+        if (!canManageTax || !editingClass || !editClassCode.trim() || !editClassName.trim()) return;
 
         setIsSavingClass(true);
         setError(null);
@@ -395,20 +429,24 @@ export default function TaxSetupPage() {
         }
     };
 
-    const handleDeleteClass = async (id: number) => {
-        if (!isAdmin) return;
-        if (!confirm("Are you sure you want to delete this tax class?")) return;
-
-        setError(null);
-        try {
-            await axios.delete(`http://localhost:5000/api/finance/tax/classes/${id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setTaxClasses(taxClasses.filter(tc => tc.id !== id));
-            showSuccess("Tax Class deleted successfully.");
-        } catch (err: any) {
-            setError(err.response?.data || err.response?.data?.message || "Failed to delete tax class. Make sure it is not in use.");
-        }
+    const handleDeleteClass = (id: number) => {
+        if (!canManageTax) return;
+        requestConfirm(
+            "Delete Tax Class",
+            "Are you sure you want to delete this tax class?",
+            async () => {
+                setError(null);
+                try {
+                    await axios.delete(`http://localhost:5000/api/finance/tax/classes/${id}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    setTaxClasses(taxClasses.filter(tc => tc.id !== id));
+                    showSuccess("Tax Class deleted successfully.");
+                } catch (err: any) {
+                    setError(err.response?.data || err.response?.data?.message || "Failed to delete tax class. Make sure it is not in use.");
+                }
+            }
+        );
     };
 
     const showSuccess = (msg: string) => {
@@ -461,7 +499,7 @@ export default function TaxSetupPage() {
                         <h3 className="text-base font-bold text-slate-900">Base Operating Countries</h3>
                         <p className="text-xs text-slate-500 mt-0.5 font-sans leading-none">Operating countries established for your tenant company.</p>
                     </div>
-                    {isAdmin && !isEditingBaseCountries && (
+                    {canManageTax && !isEditingBaseCountries && (
                         <button
                             onClick={() => setIsEditingBaseCountries(true)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:border-slate-350 text-slate-700 rounded-xl hover:bg-slate-50 transition-all text-xs font-semibold cursor-pointer"
@@ -582,7 +620,7 @@ export default function TaxSetupPage() {
                                                     </h4>
                                                     <p className="text-xs text-slate-500 mt-1 leading-relaxed">{z.description || "No description provided."}</p>
                                                 </div>
-                                                {isAdmin && (
+                                                {canManageTax && (
                                                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all">
                                                         <button
                                                             onClick={() => openEditZone(z)}
@@ -626,7 +664,7 @@ export default function TaxSetupPage() {
                 </div>
 
                 {/* Create Tax Zone */}
-                {isAdmin && (
+                {canManageTax && (
                     <div className="space-y-4">
                         <div>
                             <h3 className="text-base font-bold text-slate-900 font-heading">New Tax Zone</h3>
@@ -706,7 +744,7 @@ export default function TaxSetupPage() {
                                                     <h4 className="text-xs font-bold text-slate-900 leading-none">{tc.name}</h4>
                                                 </div>
                                             </div>
-                                            {isAdmin && (
+                                            {canManageTax && (
                                                 <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all">
                                                     <button
                                                         onClick={() => openEditClass(tc)}
@@ -732,7 +770,7 @@ export default function TaxSetupPage() {
                     </div>
 
                     {/* Create Tax Class form */}
-                    {isAdmin && (
+                    {canManageTax && (
                         <div className="space-y-4">
                             <form onSubmit={handleCreateClass} className="p-5 bg-white border border-slate-200 rounded-3xl shadow-sm space-y-4">
                                 <div>
@@ -850,7 +888,7 @@ export default function TaxSetupPage() {
                                                          <div className="flex items-center justify-center gap-2">
                                                              <button
                                                                  onClick={() => openEditRate(r)}
-                                                                 disabled={!isAdmin}
+                                                                 disabled={!canManageTax}
                                                                  className="p-1 hover:bg-slate-50 text-slate-455 hover:text-slate-700 rounded border border-slate-200 transition-colors disabled:opacity-50 cursor-pointer"
                                                                  title="Edit Rule"
                                                              >
@@ -858,7 +896,7 @@ export default function TaxSetupPage() {
                                                              </button>
                                                              <button
                                                                  onClick={() => handleDeleteRate(r.id)}
-                                                                 disabled={!isAdmin}
+                                                                 disabled={!canManageTax}
                                                                  className="p-1 hover:bg-rose-50 text-slate-450 hover:text-rose-600 rounded border border-slate-200 transition-colors disabled:opacity-50 cursor-pointer"
                                                                  title="Delete Rule"
                                                              >
@@ -876,7 +914,7 @@ export default function TaxSetupPage() {
                     </div>
 
                     {/* Create Rate Form */}
-                    {isAdmin && (
+                    {canManageTax && (
                         <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-5 space-y-4 self-start">
                             <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1">
                                 <Percent className="w-4 h-4 text-violet-650" /> Add Matrix Rule
@@ -1357,6 +1395,37 @@ export default function TaxSetupPage() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Custom Confirmation Modal */}
+            {confirmModal.isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white border border-slate-200 rounded-3xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 overflow-hidden">
+                        <div className="p-6 text-center space-y-4">
+                            <div className="mx-auto w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center border border-rose-100">
+                                <Trash2 className="w-5 h-5" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <h3 className="text-base font-bold text-slate-900 font-heading">{confirmModal.title}</h3>
+                                <p className="text-xs text-slate-500 leading-relaxed">{confirmModal.message}</p>
+                            </div>
+                        </div>
+                        <div className="bg-slate-50 px-6 py-4 flex items-center justify-end gap-3 border-t border-slate-100">
+                            <button
+                                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                                className="py-2 px-4 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold hover:bg-slate-100 transition-all cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmModal.onConfirm}
+                                className="py-2 px-4.5 bg-rose-600 hover:bg-rose-550 text-white rounded-xl text-xs font-semibold shadow-md shadow-rose-550/10 transition-all cursor-pointer"
+                            >
+                                Delete
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

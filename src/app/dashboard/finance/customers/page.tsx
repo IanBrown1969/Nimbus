@@ -39,6 +39,7 @@ export default function CustomersPage() {
 
   const [customers, setCustomers] = useState<any[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -51,6 +52,7 @@ export default function CustomersPage() {
   const [phone, setPhone] = useState("");
   const [currency, setCurrency] = useState("GBP");
   const [selectedCountryId, setSelectedCountryId] = useState<number | "">("");
+  const [servedFromCountryId, setServedFromCountryId] = useState<number | "">("");
   const [creditContractDays, setCreditContractDays] = useState(30);
   const [addresses, setAddresses] = useState<AddressInput[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -63,6 +65,7 @@ export default function CustomersPage() {
   const [editPhone, setEditPhone] = useState("");
   const [editCurrency, setEditCurrency] = useState("");
   const [editCountryId, setEditCountryId] = useState<number | "">("");
+  const [editServedFromCountryId, setEditServedFromCountryId] = useState<number | "">("");
   const [editIsActive, setEditIsActive] = useState(true);
   const [editCreditContractDays, setEditCreditContractDays] = useState(30);
   const [updating, setUpdating] = useState(false);
@@ -87,8 +90,30 @@ export default function CustomersPage() {
     if (token) {
       fetchCustomers();
       fetchCountries();
+      fetchWarehouses();
     }
   }, [token]);
+
+  const fetchWarehouses = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/warehouse/warehouses", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setWarehouses(res.data);
+    } catch (err) {
+      console.error("Failed to load warehouses", err);
+    }
+  };
+
+  const warehouseCountries = React.useMemo(() => {
+    const uniqueCountriesMap = new Map<number, any>();
+    warehouses.forEach((w: any) => {
+      if (w.country) {
+        uniqueCountriesMap.set(w.country.id, w.country);
+      }
+    });
+    return Array.from(uniqueCountriesMap.values());
+  }, [warehouses]);
 
   const fetchCustomers = async () => {
     setLoading(true);
@@ -133,6 +158,7 @@ export default function CustomersPage() {
     setEditPhone(c.phone || "");
     setEditCurrency(c.defaultCurrencyCode || "GBP");
     setEditCountryId(c.countryId || "");
+    setEditServedFromCountryId(c.servedFromCountryId || "");
     setEditIsActive(c.isActive !== false);
     setEditCreditContractDays(c.creditContractDays || 30);
 
@@ -161,6 +187,7 @@ export default function CustomersPage() {
         phone: editPhone,
         defaultCurrencyCode: editCurrency,
         countryId: editCountryId === "" ? null : Number(editCountryId),
+        servedFromCountryId: editServedFromCountryId === "" ? null : Number(editServedFromCountryId),
         isActive: editIsActive,
         creditContractDays: Number(editCreditContractDays)
       }, {
@@ -267,6 +294,7 @@ export default function CustomersPage() {
         phone,
         defaultCurrencyCode: currency,
         countryId: selectedCountryId === "" ? null : Number(selectedCountryId),
+        servedFromCountryId: servedFromCountryId === "" ? null : Number(servedFromCountryId),
         creditContractDays: Number(creditContractDays),
         addresses: addresses.map(a => ({
           ...a,
@@ -285,6 +313,7 @@ export default function CustomersPage() {
       setPhone("");
       setCurrency("GBP");
       setSelectedCountryId("");
+      setServedFromCountryId("");
       setCreditContractDays(30);
       setAddresses([]);
       fetchCustomers();
@@ -367,7 +396,8 @@ export default function CustomersPage() {
                 <th className="py-3.5 px-5">Phone</th>
                 <th className="py-3.5 px-5">Currency</th>
                 <th className="py-3.5 px-5">Credit Term</th>
-                <th className="py-3.5 px-5">Outstanding Debt</th>
+                <th className="py-3.5 px-5 text-center">Served From</th>
+                <th className="py-3.5 px-5 font-mono">Outstanding Debt</th>
                 <th className="py-3.5 px-5 text-center">Status</th>
               </tr>
             </thead>
@@ -388,6 +418,16 @@ export default function CustomersPage() {
                   <td className="py-3 px-5 text-slate-600">{customer.phone}</td>
                   <td className="py-3 px-5 text-center font-bold text-slate-600">{customer.defaultCurrencyCode}</td>
                   <td className="py-3 px-5 text-slate-600 font-semibold">Net {customer.creditContractDays || 30} Days</td>
+                  <td className="py-3 px-5 text-center">
+                    {customer.servedFromCountry ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                        <Globe className="w-3.5 h-3.5 text-blue-500" />
+                        {customer.servedFromCountry.name}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 italic text-[11px]">—</span>
+                    )}
+                  </td>
                   <td className="py-3 px-5">
                     <button
                       onClick={(e) => {
@@ -488,7 +528,7 @@ export default function CustomersPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="text-[10px] font-bold uppercase text-slate-500">Billing Country</label>
                     <select
@@ -499,6 +539,19 @@ export default function CustomersPage() {
                     >
                       <option value="">Select Country</option>
                       {countries.map(c => (
+                        <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase text-slate-500">Served From Base Country</label>
+                    <select
+                      value={servedFromCountryId}
+                      onChange={(e) => setServedFromCountryId(e.target.value === "" ? "" : Number(e.target.value))}
+                      className="w-full mt-1 text-xs px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 text-slate-800"
+                    >
+                      <option value="">Select Base Country (Optional)</option>
+                      {warehouseCountries.map(c => (
                         <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
                       ))}
                     </select>
@@ -811,16 +864,31 @@ export default function CustomersPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 py-2">
-                <label className="flex items-center gap-2 cursor-pointer text-slate-700 text-xs select-none">
-                  <input
-                    type="checkbox"
-                    checked={editIsActive}
-                    onChange={(e) => setEditIsActive(e.target.checked)}
-                    className="w-4 h-4 rounded text-violet-650 focus:ring-violet-500 border-slate-350"
-                  />
-                  <span className="font-bold uppercase tracking-wider text-[10px] text-slate-550">Active Partner Status</span>
-                </label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Served From Base Country</label>
+                  <select
+                    value={editServedFromCountryId}
+                    onChange={(e) => setEditServedFromCountryId(e.target.value === "" ? "" : Number(e.target.value))}
+                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
+                  >
+                    <option value="">Select Base Country (Optional)</option>
+                    {warehouseCountries.map(c => (
+                      <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center pt-5 pl-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-700 text-xs select-none">
+                    <input
+                      type="checkbox"
+                      checked={editIsActive}
+                      onChange={(e) => setEditIsActive(e.target.checked)}
+                      className="w-4 h-4 rounded text-violet-650 focus:ring-violet-500 border-slate-350"
+                    />
+                    <span className="font-bold uppercase tracking-wider text-[10px] text-slate-550">Active Partner Status</span>
+                  </label>
+                </div>
               </div>
 
               <button

@@ -42,6 +42,18 @@ export default function SalesOrdersPage() {
   const [currency, setCurrency] = useState("GBP");
   const [exchangeRate, setExchangeRate] = useState(1.0);
 
+  // Delivery Address states
+  const [countries, setCountries] = useState<any[]>([]);
+  const [selectedDeliveryAddressId, setSelectedDeliveryAddressId] = useState<string>("");
+  const [addNewAddress, setAddNewAddress] = useState(false);
+  const [newAddressName, setNewAddressName] = useState("");
+  const [newAddressLine1, setNewAddressLine1] = useState("");
+  const [newAddressLine2, setNewAddressLine2] = useState("");
+  const [newCity, setNewCity] = useState("");
+  const [newStateVal, setNewStateVal] = useState("");
+  const [newPostalCode, setNewPostalCode] = useState("");
+  const [newCountryCode, setNewCountryCode] = useState("GB");
+
   // Multi-line items state
   const [lines, setLines] = useState<SalesLine[]>([
     { stockItemId: "", unitOfSale: "sell", quantity: 10, unitPrice: 15.0, taxRate: 0.20 }
@@ -55,6 +67,39 @@ export default function SalesOrdersPage() {
       fetchData();
     }
   }, [token]);
+
+  useEffect(() => {
+    if (showModal && customerName && token) {
+      const resolveAll = async () => {
+        try {
+          const updatedLines = await Promise.all(
+            lines.map(async (line) => {
+              if (!line.stockItemId) return line;
+              let url = `http://localhost:5000/api/finance/tax/resolve?customerName=${encodeURIComponent(customerName)}&stockItemId=${line.stockItemId}`;
+              if (addNewAddress) {
+                url += `&deliveryCountryCode=${newCountryCode}`;
+              } else if (selectedDeliveryAddressId) {
+                url += `&deliveryAddressId=${selectedDeliveryAddressId}`;
+              }
+              const res = await axios.get(url, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              return { ...line, taxRate: res.data.rate };
+            })
+          );
+          
+          setLines(prev => {
+            const hasChanged = updatedLines.some((l, idx) => l.taxRate !== prev[idx]?.taxRate);
+            return hasChanged ? updatedLines : prev;
+          });
+        } catch (err) {
+          console.error("Error resolving all line tax rates", err);
+        }
+      };
+      
+      resolveAll();
+    }
+  }, [customerName, selectedDeliveryAddressId, addNewAddress, newCountryCode, showModal, token]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -74,6 +119,11 @@ export default function SalesOrdersPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCustomers(customersRes.data);
+
+      const countriesRes = await axios.get("http://localhost:5000/api/countries", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setCountries(countriesRes.data);
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to load sales orders.");
     } finally {
@@ -108,6 +158,29 @@ export default function SalesOrdersPage() {
           const ratio = selectedItem.conversionRatio || 1;
           newLines[index].unitPrice = Number(((selectedItem.basePrice || 0) / ratio).toFixed(4));
         }
+
+        if (field === "stockItemId" && customerName && token) {
+          let url = `http://localhost:5000/api/finance/tax/resolve?customerName=${encodeURIComponent(customerName)}&stockItemId=${value}`;
+          if (addNewAddress) {
+            url += `&deliveryCountryCode=${newCountryCode}`;
+          } else if (selectedDeliveryAddressId) {
+            url += `&deliveryAddressId=${selectedDeliveryAddressId}`;
+          }
+          
+          axios.get(url, {
+            headers: { Authorization: `Bearer ${token}` }
+          }).then(res => {
+            setLines(prev => {
+              const updated = [...prev];
+              if (updated[index]) {
+                updated[index].taxRate = res.data.rate;
+              }
+              return updated;
+            });
+          }).catch(err => {
+            console.error("Failed to resolve tax rate", err);
+          });
+        }
       }
     }
 
@@ -132,12 +205,16 @@ export default function SalesOrdersPage() {
 
         const qtyToSend = line.unitOfSale === "stock" ? Number(line.quantity) * ratio : Number(line.quantity);
         const priceToSend = line.unitOfSale === "stock" ? Number(line.unitPrice) / ratio : Number(line.unitPrice);
+        const unitName = line.unitOfSale === "stock" 
+          ? (prod?.stockUnitOfSale || "Pallet") 
+          : (prod?.sellUnitOfSale || "Each");
 
         return {
           stockItemId: Number(line.stockItemId),
           quantity: qtyToSend,
           unitPrice: priceToSend,
-          taxRate: Number(line.taxRate)
+          taxRate: Number(line.taxRate),
+          unitOfSale: unitName
         };
       });
 
@@ -146,6 +223,16 @@ export default function SalesOrdersPage() {
         customerName,
         currencyCode: currency,
         exchangeRateToBase: Number(exchangeRate),
+        deliveryAddressId: addNewAddress ? null : (selectedDeliveryAddressId ? Number(selectedDeliveryAddressId) : null),
+        newDeliveryAddress: addNewAddress ? {
+          addressName: newAddressName,
+          addressLine1: newAddressLine1,
+          addressLine2: newAddressLine2 || null,
+          city: newCity,
+          state: newStateVal || null,
+          postalCode: newPostalCode,
+          countryCode: newCountryCode
+        } : null,
         lines: payloadLines
       };
 
@@ -156,6 +243,15 @@ export default function SalesOrdersPage() {
       setShowModal(false);
       setCustomerName("");
       setOrderNumber("");
+      setSelectedDeliveryAddressId("");
+      setAddNewAddress(false);
+      setNewAddressName("");
+      setNewAddressLine1("");
+      setNewAddressLine2("");
+      setNewCity("");
+      setNewStateVal("");
+      setNewPostalCode("");
+      setNewCountryCode("GB");
       setLines([{ stockItemId: "", unitOfSale: "sell", quantity: 10, unitPrice: 15.0, taxRate: 0.20 }]);
       fetchData();
     } catch (err: any) {
@@ -273,7 +369,7 @@ export default function SalesOrdersPage() {
                     <div className="flex gap-4 text-[10px] text-slate-400">
                       <span>Customer: <strong className="text-slate-600">{order.customerName}</strong></span>
                       <span className="max-w-xs truncate">Items: <strong className="text-slate-650">
-                        {order.lines.map((l: any) => `${getTranslatedName(l.stockItem?.nameJson)} (${l.quantity} units)`).join(", ")}
+                        {order.lines.map((l: any) => `${getTranslatedName(l.stockItem?.nameJson)} (${l.quantity} ${l.unitOfSale || "units"})`).join(", ")}
                       </strong></span>
                     </div>
                   </div>
@@ -397,6 +493,141 @@ export default function SalesOrdersPage() {
                   />
                 </div>
               </div>
+
+              {/* Delivery Address Section */}
+              {customerName && (
+                <div className="space-y-3 border-t border-slate-100 pt-3">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-bold uppercase text-slate-500">Delivery Address</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddNewAddress(!addNewAddress);
+                        setNewAddressName("");
+                        setNewAddressLine1("");
+                        setNewAddressLine2("");
+                        setNewCity("");
+                        setNewStateVal("");
+                        setNewPostalCode("");
+                        setNewCountryCode("GB");
+                      }}
+                      className="text-[10px] font-bold text-[#00b7e2] hover:text-[#009dc4] bg-[#00b7e2]/5 hover:bg-[#00b7e2]/10 px-2 py-0.5 border border-[#00b7e2]/20 rounded cursor-pointer animate-pulse-subtle"
+                    >
+                      {addNewAddress ? "Select Existing Address" : "Add New Shipping Address"}
+                    </button>
+                  </div>
+
+                  {!addNewAddress ? (
+                    <div>
+                      <select
+                        value={selectedDeliveryAddressId}
+                        onChange={(e) => setSelectedDeliveryAddressId(e.target.value)}
+                        className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-[#00b7e2] text-slate-800"
+                      >
+                        <option value="">No delivery address (Use Billing Address for domestic calculation)</option>
+                        {(() => {
+                          const selectedCustomer = customers.find(c => c.name === customerName || c.companyName === customerName);
+                          const shippingAddresses = selectedCustomer ? (selectedCustomer.addresses || []).filter((addr: any) => addr.addressType === "Shipping") : [];
+                          return shippingAddresses.map((addr: any) => (
+                            <option key={addr.id} value={addr.id}>
+                              {addr.addressName} - {addr.addressLine1}, {addr.city}, {addr.country?.name || addr.countryId}
+                            </option>
+                          ));
+                        })()}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500">Address Name</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. Warehouse 1, Berlin Office"
+                            value={newAddressName}
+                            onChange={(e) => setNewAddressName(e.target.value)}
+                            className="w-full mt-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500">Address Line 1</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Street name, building number"
+                            value={newAddressLine1}
+                            onChange={(e) => setNewAddressLine1(e.target.value)}
+                            className="w-full mt-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500">Address Line 2 (Optional)</label>
+                          <input
+                            type="text"
+                            placeholder="Apartment, suite, unit, etc."
+                            value={newAddressLine2}
+                            onChange={(e) => setNewAddressLine2(e.target.value)}
+                            className="w-full mt-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500">City</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="City"
+                            value={newCity}
+                            onChange={(e) => setNewCity(e.target.value)}
+                            className="w-full mt-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3 text-xs">
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500">State / Region (Optional)</label>
+                          <input
+                            type="text"
+                            placeholder="State"
+                            value={newStateVal}
+                            onChange={(e) => setNewStateVal(e.target.value)}
+                            className="w-full mt-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500">Postal Code</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Postcode"
+                            value={newPostalCode}
+                            onChange={(e) => setNewPostalCode(e.target.value)}
+                            className="w-full mt-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500">Country</label>
+                          <select
+                            value={newCountryCode}
+                            onChange={(e) => setNewCountryCode(e.target.value)}
+                            className="w-full mt-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none"
+                          >
+                            {countries.map((c) => (
+                              <option key={c.id} value={c.code}>
+                                {c.name} ({c.code})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Line Items Editor */}
               <div className="space-y-3 border-t border-slate-100 pt-4">
