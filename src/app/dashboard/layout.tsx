@@ -22,7 +22,13 @@ import {
   ShoppingBag,
   Users,
   Sliders,
-  Lock
+  Lock,
+  Percent,
+  Activity,
+  CreditCard,
+  Award,
+  Calendar,
+  ShieldCheck
 } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -34,10 +40,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Collapsible modules state
   const [openModules, setOpenModules] = useState<Record<string, boolean>>({
-    financials: true,
-    sales: false,
-    purchasing: false,
-    banking: false,
+    general_ledger: true,
+    cash_management: false,
+    accounts_receivable: false,
+    accounts_payable: false,
+    account_reconciliation: false,
+    tax_management: false,
+    close_management: false,
+    fixed_assets: false,
+    payment_management: false,
+    grant_management: false,
     inventory: false,
     hr: false,
     admin: false
@@ -134,45 +146,102 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const modules = [
     {
-      key: "financials",
-      name: "Finance",
+      key: "general_ledger",
+      permissionKey: "financials",
+      name: "General Ledger",
       icon: BookOpen,
       items: [
         { name: "Ledger Dashboard", href: "/dashboard/finance" },
-        { name: "Chart of Accounts", href: "/dashboard/finance/accounts" },
-        { name: "VAT Returns (HMRC)", href: "/dashboard/finance/vat" }
+        { name: "Chart of Accounts", href: "/dashboard/finance/accounts" }
       ]
     },
     {
-      key: "sales",
-      name: "Sales",
+      key: "cash_management",
+      permissionKey: "banking",
+      name: "Cash Management",
+      icon: Coins,
+      items: [
+        { name: "Bank Feeds & Cash", href: "/dashboard/finance/bank" }
+      ]
+    },
+    {
+      key: "accounts_receivable",
+      permissionKey: "sales",
+      name: "Accounts Receivable",
       icon: TrendingUp,
       items: [
         { name: "Customers", href: "/dashboard/finance/customers" },
         { name: "Sales Quotations", href: "/dashboard/finance/quotes" },
         { name: "Sales Orders", href: "/dashboard/finance/sales-orders" },
-        { name: "A/R Invoices", href: "/dashboard/finance" },
+        { name: "A/R Invoices", href: "/dashboard/finance?tab=invoices" },
         { name: "A/R Credit Notes", href: "/dashboard/finance/credit-notes" }
       ]
     },
     {
-      key: "purchasing",
-      name: "Purchasing",
+      key: "accounts_payable",
+      permissionKey: "purchasing",
+      name: "Accounts Payable",
       icon: ShoppingBag,
       locked: !isSupActive,
       badge: "SUP",
       items: [
-        { name: "Supplier Directory", href: "/dashboard/finance" },
+        { name: "Supplier Directory", href: "/dashboard/finance?tab=suppliers" },
         { name: "Purchase Orders", href: "/dashboard/finance/purchase-orders" },
         { name: "Supplier Bills (A/P)", href: "/dashboard/finance/supplier-bills" }
       ]
     },
     {
-      key: "banking",
-      name: "Banking",
-      icon: Coins,
+      key: "account_reconciliation",
+      permissionKey: "banking",
+      name: "Account Reconciliation",
+      icon: ShieldCheck,
       items: [
-        { name: "Bank Feeds & Cash", href: "/dashboard/finance/bank" }
+        { name: "Bank Statement Matching", href: "/dashboard/finance/reconciliation" }
+      ]
+    },
+    {
+      key: "tax_management",
+      permissionKey: "financials",
+      name: "Tax Management",
+      icon: Percent,
+      items: [
+        { name: "VAT Returns (HMRC)", href: "/dashboard/finance/vat" }
+      ]
+    },
+    {
+      key: "close_management",
+      permissionKey: "financials",
+      name: "Close Management",
+      icon: Calendar,
+      items: [
+        { name: "Period Close Checks", href: "/dashboard/finance/close-management" }
+      ]
+    },
+    {
+      key: "fixed_assets",
+      permissionKey: "admin",
+      name: "Fixed Assets Management",
+      icon: Activity,
+      items: [
+        { name: "Fixed Assets Register", href: "/dashboard/finance/assets" }
+      ]
+    },
+    {
+      key: "payment_management",
+      permissionKey: "banking",
+      name: "Payment Management",
+      icon: CreditCard,
+      items: [
+        { name: "Payment Processing", href: "/dashboard/finance/payments" }
+      ]
+    },
+    {
+      key: "grant_management",
+      permissionKey: "financials",
+      name: "Grant Management",
+      icon: Award,
+      items: [
+        { name: "Grant Funding Tracker", href: "/dashboard/finance/grants" }
       ]
     },
     {
@@ -205,7 +274,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       name: "Admin",
       icon: Sliders,
       items: [
-        { name: "Fixed Assets", href: "/dashboard/finance/assets" },
         { name: "Marketplace Add-ons", href: "/dashboard/settings/plugins" },
         { name: "Role Permissions (RBAC)", href: "/dashboard/settings/rbac" }
       ]
@@ -214,7 +282,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const allowedModules = modules.filter(mod => {
     if (user?.role === "CompanyAdmin" || user?.role === "GlobalAdmin") return true;
-    return permissions && permissions.includes(mod.key);
+    const requiredPermission = mod.permissionKey || mod.key;
+    return permissions && permissions.includes(requiredPermission);
   });
 
   const moduleKey = getModuleKeyForPath(pathname);
@@ -697,6 +766,11 @@ function getModuleKeyForPath(path: string): string | null {
   }
   if (path.startsWith("/dashboard/finance/accounts")) return "financials";
   if (path.startsWith("/dashboard/finance/vat")) return "financials";
+
+  if (path.startsWith("/dashboard/finance/reconciliation")) return "banking";
+  if (path.startsWith("/dashboard/finance/close-management")) return "financials";
+  if (path.startsWith("/dashboard/finance/payments")) return "banking";
+  if (path.startsWith("/dashboard/finance/grants")) return "financials";
 
   if (path.startsWith("/dashboard/finance/customers")) return "sales";
   if (path.startsWith("/dashboard/finance/quotes")) return "sales";
