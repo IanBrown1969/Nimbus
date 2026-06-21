@@ -1,6 +1,6 @@
 "use client";
  
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { 
   Building2, 
@@ -20,6 +20,13 @@ interface Warehouse {
   code: string;
   name: string;
   address?: string | null;
+  addressLine1?: string;
+  addressLine2?: string | null;
+  addressLine3?: string | null;
+  city?: string;
+  postalCode?: string;
+  countryId?: number | null;
+  country?: any | null;
 }
  
 interface WarehousesTabProps {
@@ -44,25 +51,53 @@ export default function WarehousesTab({
   // Form States
   const [editCode, setEditCode] = useState("");
   const [editName, setEditName] = useState("");
-  const [editAddress, setEditAddress] = useState("");
+  const [editAddressLine1, setEditAddressLine1] = useState("");
+  const [editAddressLine2, setEditAddressLine2] = useState("");
+  const [editAddressLine3, setEditAddressLine3] = useState("");
+  const [editCity, setEditCity] = useState("");
+  const [editPostalCode, setEditPostalCode] = useState("");
+  const [editCountryId, setEditCountryId] = useState<number | "">("");
+  const [countries, setCountries] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (token) {
+      axios.get("http://localhost:5000/api/countries", {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(res => {
+        setCountries(res.data);
+      }).catch(err => {
+        console.error("Failed to load countries", err);
+      });
+    }
+  }, [token]);
  
   const handleSelectWarehouse = (wh: Warehouse) => {
     setIsCreateMode(false);
     setSelectedWarehouse(wh);
     setEditCode(wh.code || "");
     setEditName(wh.name || "");
-    setEditAddress(wh.address || "");
+    setEditAddressLine1(wh.addressLine1 || "");
+    setEditAddressLine2(wh.addressLine2 || "");
+    setEditAddressLine3(wh.addressLine3 || "");
+    setEditCity(wh.city || "");
+    setEditPostalCode(wh.postalCode || "");
+    setEditCountryId(wh.countryId || "");
     setError(null);
   };
  
   const handleOpenCreateDrawer = () => {
     setIsCreateMode(true);
-    setSelectedWarehouse({ id: 0, code: "", name: "", address: "" });
+    setSelectedWarehouse({ id: 0, code: "", name: "", addressLine1: "", addressLine2: "", addressLine3: "", city: "", postalCode: "", countryId: null });
     setEditCode("");
     setEditName("");
-    setEditAddress("");
+    setEditAddressLine1("");
+    setEditAddressLine2("");
+    setEditAddressLine3("");
+    setEditCity("");
+    setEditPostalCode("");
+    setEditCountryId("");
     setError(null);
   };
  
@@ -76,7 +111,12 @@ export default function WarehousesTab({
       const payload = {
         code: editCode,
         name: editName,
-        address: editAddress === "" ? null : editAddress
+        addressLine1: editAddressLine1,
+        addressLine2: editAddressLine2 === "" ? null : editAddressLine2,
+        addressLine3: editAddressLine3 === "" ? null : editAddressLine3,
+        city: editCity,
+        postalCode: editPostalCode,
+        countryId: editCountryId === "" ? null : Number(editCountryId)
       };
  
       if (isCreateMode) {
@@ -105,7 +145,10 @@ export default function WarehousesTab({
   const filteredWarehouses = warehouses.filter(wh => 
     wh.code.toLowerCase().includes(search.toLowerCase()) ||
     wh.name.toLowerCase().includes(search.toLowerCase()) ||
-    (wh.address || "").toLowerCase().includes(search.toLowerCase())
+    (wh.addressLine1 || "").toLowerCase().includes(search.toLowerCase()) ||
+    (wh.city || "").toLowerCase().includes(search.toLowerCase()) ||
+    (wh.postalCode || "").toLowerCase().includes(search.toLowerCase()) ||
+    (wh.country?.name || "").toLowerCase().includes(search.toLowerCase())
   );
  
   const isAdmin = userRole === "CompanyAdmin" || userRole === "GlobalAdmin";
@@ -170,9 +213,22 @@ export default function WarehousesTab({
                     <GoldenArrow type="warehouse" id={wh.code} />
                   </td>
                   <td className="py-3.5 px-5 font-semibold text-slate-900">{wh.name}</td>
-                  <td className="py-3.5 px-5 text-slate-500 flex items-center gap-1.5">
+                  <td className="py-3.5 px-5 text-slate-505 flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{wh.address || <span className="italic text-slate-350">No address defined</span>}</span>
+                    <span>
+                      {wh.addressLine1 ? (
+                        <>
+                          {wh.addressLine1}
+                          {wh.addressLine2 && `, ${wh.addressLine2}`}
+                          {wh.addressLine3 && `, ${wh.addressLine3}`}
+                          {`, ${wh.city}`}
+                          {`, ${wh.postalCode}`}
+                          {wh.country && `, ${wh.country.name}`}
+                        </>
+                      ) : (
+                        <span className="italic text-slate-350">No address defined</span>
+                      )}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -243,15 +299,82 @@ export default function WarehousesTab({
                   />
                 </div>
  
-                <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-500">Physical Address</label>
-                  <textarea
-                    value={editAddress}
-                    onChange={(e) => setEditAddress(e.target.value)}
-                    placeholder="e.g. Unit 4, Logic Park, Leeds, LS15 0AA"
-                    className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
-                    rows={3}
-                  />
+                <div className="grid grid-cols-1 gap-3 border-t border-slate-100 pt-4">
+                  <span className="block text-[10px] font-bold uppercase text-slate-600">Physical Location Address</span>
+                  
+                  <div>
+                    <label className="text-[9px] font-bold uppercase text-slate-500">Address Line 1</label>
+                    <input
+                      type="text"
+                      required
+                      value={editAddressLine1}
+                      onChange={(e) => setEditAddressLine1(e.target.value)}
+                      placeholder="e.g. Unit 4, Logic Park"
+                      className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[9px] font-bold uppercase text-slate-500">Address Line 2 (Optional)</label>
+                      <input
+                        type="text"
+                        value={editAddressLine2}
+                        onChange={(e) => setEditAddressLine2(e.target.value)}
+                        placeholder="e.g. Leeds Road"
+                        className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-bold uppercase text-slate-500">Address Line 3 (Optional)</label>
+                      <input
+                        type="text"
+                        value={editAddressLine3}
+                        onChange={(e) => setEditAddressLine3(e.target.value)}
+                        placeholder="e.g. Thorpe Park"
+                        className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-[9px] font-bold uppercase text-slate-500">City</label>
+                      <input
+                        type="text"
+                        required
+                        value={editCity}
+                        onChange={(e) => setEditCity(e.target.value)}
+                        placeholder="e.g. Leeds"
+                        className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-bold uppercase text-slate-500">Postcode</label>
+                      <input
+                        type="text"
+                        required
+                        value={editPostalCode}
+                        onChange={(e) => setEditPostalCode(e.target.value)}
+                        placeholder="e.g. LS15 0AA"
+                        className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-bold uppercase text-slate-500">Country</label>
+                      <select
+                        required
+                        value={editCountryId}
+                        onChange={(e) => setEditCountryId(e.target.value === "" ? "" : Number(e.target.value))}
+                        className="w-full mt-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 text-slate-800"
+                      >
+                        <option value="">Select Country</option>
+                        {countries.map(c => (
+                          <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </div>
  
