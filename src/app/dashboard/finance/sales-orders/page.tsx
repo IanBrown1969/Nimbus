@@ -15,7 +15,8 @@ import {
   FileText, 
   ChevronDown,
   Info,
-  Sparkles
+  Sparkles,
+  Globe
 } from "lucide-react";
 
 interface SalesLine {
@@ -34,6 +35,9 @@ export default function SalesOrdersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
 
   // Form states
   const [showModal, setShowModal] = useState(false);
@@ -54,9 +58,14 @@ export default function SalesOrdersPage() {
   const [newPostalCode, setNewPostalCode] = useState("");
   const [newCountryCode, setNewCountryCode] = useState("GB");
 
+  const defaultTaxOptions = [
+    { rate: 0.00, className: "0% Zero-Rate" }
+  ];
+  const [taxOptions, setTaxOptions] = useState<any[]>(defaultTaxOptions);
+
   // Multi-line items state
   const [lines, setLines] = useState<SalesLine[]>([
-    { stockItemId: "", unitOfSale: "sell", quantity: 10, unitPrice: 15.0, taxRate: 0.20 }
+    { stockItemId: "", unitOfSale: "sell", quantity: 10, unitPrice: 15.0, taxRate: 0.00 }
   ]);
   
   const [submitting, setSubmitting] = useState(false);
@@ -69,6 +78,11 @@ export default function SalesOrdersPage() {
   }, [token]);
 
   useEffect(() => {
+    if (!customerName || !showModal) {
+      setTaxOptions(defaultTaxOptions);
+      return;
+    }
+
     if (showModal && customerName && token) {
       const resolveAll = async () => {
         try {
@@ -91,6 +105,35 @@ export default function SalesOrdersPage() {
           setLines(prev => {
             const hasChanged = updatedLines.some((l, idx) => l.taxRate !== prev[idx]?.taxRate);
             return hasChanged ? updatedLines : prev;
+          });
+
+          let optUrl = `http://localhost:5000/api/finance/tax/options?customerName=${encodeURIComponent(customerName)}`;
+          if (addNewAddress) {
+            optUrl += `&deliveryCountryCode=${newCountryCode}`;
+          } else if (selectedDeliveryAddressId) {
+            optUrl += `&deliveryAddressId=${selectedDeliveryAddressId}`;
+          }
+          const optRes = await axios.get(optUrl, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const newOptions = optRes.data || [];
+          setTaxOptions(newOptions);
+
+          // Update lines whose taxRate is not in the new options list
+          setLines(prev => {
+            const updated = prev.map(line => {
+              if (newOptions.length > 0) {
+                const isInOptions = newOptions.some((opt: any) => Math.abs(opt.rate - line.taxRate) < 0.001);
+                if (!isInOptions) {
+                  return { ...line, taxRate: newOptions[0].rate };
+                }
+              } else {
+                return { ...line, taxRate: 0.00 };
+              }
+              return line;
+            });
+            const hasChanged = updated.some((l, idx) => l.taxRate !== prev[idx]?.taxRate);
+            return hasChanged ? updated : prev;
           });
         } catch (err) {
           console.error("Error resolving all line tax rates", err);
@@ -124,6 +167,18 @@ export default function SalesOrdersPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCountries(countriesRes.data);
+
+      const warehousesRes = await axios.get("http://localhost:5000/api/warehouse/warehouses", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setWarehouses(warehousesRes.data);
+
+      // Refresh selected order details if open
+      setSelectedOrder((prev: any) => {
+        if (!prev) return null;
+        const updated = ordersRes.data.find((o: any) => o.id === prev.id);
+        return updated || prev;
+      });
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to load sales orders.");
     } finally {
@@ -132,7 +187,7 @@ export default function SalesOrdersPage() {
   };
 
   const handleAddLine = () => {
-    setLines([...lines, { stockItemId: "", unitOfSale: "sell", quantity: 10, unitPrice: 15.0, taxRate: 0.20 }]);
+    setLines([...lines, { stockItemId: "", unitOfSale: "sell", quantity: 10, unitPrice: 15.0, taxRate: 0.00 }]);
   };
 
   const handleRemoveLine = (index: number) => {
@@ -252,7 +307,7 @@ export default function SalesOrdersPage() {
       setNewStateVal("");
       setNewPostalCode("");
       setNewCountryCode("GB");
-      setLines([{ stockItemId: "", unitOfSale: "sell", quantity: 10, unitPrice: 15.0, taxRate: 0.20 }]);
+      setLines([{ stockItemId: "", unitOfSale: "sell", quantity: 10, unitPrice: 15.0, taxRate: 0.00 }]);
       fetchData();
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to draft sales order.");
@@ -324,7 +379,7 @@ export default function SalesOrdersPage() {
           onClick={() => {
             setOrderNumber(`SO-2026-000${orders.length + 1}`);
             setCustomerName("");
-            setLines([{ stockItemId: "", unitOfSale: "sell", quantity: 10, unitPrice: 15.0, taxRate: 0.20 }]);
+            setLines([{ stockItemId: "", unitOfSale: "sell", quantity: 10, unitPrice: 15.0, taxRate: 0.00 }]);
             setShowModal(true);
           }}
           className="py-2.5 px-4 rounded bg-[#00b7e2] hover:bg-[#009dc4] text-white font-semibold flex items-center gap-2 text-xs transition-all active:scale-95 cursor-pointer shadow-sm shadow-[#00b7e2]/10"
@@ -358,7 +413,11 @@ export default function SalesOrdersPage() {
               const isCreator = String(order.createdByUserId) === String(user?.id);
 
               return (
-                <div key={order.id} className="p-4 bg-white border border-[#e1e5eb] hover:border-slate-350 rounded-2xl flex items-center justify-between text-xs transition-all hover:shadow-sm">
+                <div 
+                  key={order.id} 
+                  onClick={() => setSelectedOrder(order)}
+                  className="p-4 bg-white border border-[#e1e5eb] hover:border-slate-350 hover:bg-slate-50/40 cursor-pointer rounded-2xl flex items-center justify-between text-xs transition-all hover:shadow-sm"
+                >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-bold text-[#00b7e2] text-sm">{order.orderNumber}</span>
@@ -389,7 +448,10 @@ export default function SalesOrdersPage() {
                             </span>
                           ) : (
                             <button
-                              onClick={() => handleApprove(order.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleApprove(order.id);
+                              }}
                               disabled={processingId === order.id}
                               className="py-1 px-3 rounded bg-[#00b7e2] hover:bg-[#009dc4] text-white font-semibold text-[10px] flex items-center gap-1 transition-colors disabled:opacity-50 inline-block text-center cursor-pointer active:scale-95"
                             >
@@ -681,6 +743,55 @@ export default function SalesOrdersPage() {
                                 </option>
                               ))}
                             </select>
+                            {selectedProduct && (
+                              <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold">
+                                {(() => {
+                                  const selectedCustomer = customers.find(c => c.name === customerName || c.companyName === customerName);
+                                  const servedFromCountryId = selectedCustomer?.servedFromCountryId;
+                                  const countryWarehouses = servedFromCountryId 
+                                    ? warehouses.filter((w: any) => w.countryId === servedFromCountryId) 
+                                    : [];
+                                  const filterByCountry = servedFromCountryId && countryWarehouses.length > 0;
+                                  
+                                  if (filterByCountry) {
+                                    const warehouseIds = countryWarehouses.map((w: any) => w.id);
+                                    const relevantWhQuantities = (selectedProduct.warehouseQuantities || []).filter((wq: any) => warehouseIds.includes(wq.warehouseId));
+                                    const sellingSum = relevantWhQuantities.reduce((sum: number, wq: any) => sum + (wq.sellingQuantity || 0), 0);
+                                    const countryName = countryWarehouses[0]?.country?.name || `Country ID: ${servedFromCountryId}`;
+                                    const isOutOfStock = sellingSum <= 0;
+                                    
+                                    return (
+                                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border text-[10px] ${
+                                        isOutOfStock 
+                                          ? "bg-rose-50 border-rose-250 text-rose-700" 
+                                          : "bg-emerald-50 border-emerald-250 text-emerald-700"
+                                      }`}>
+                                        <Globe className="w-3.5 h-3.5" />
+                                        <span>
+                                          Stock Available in <strong>{countryName}</strong>: {sellingSum} {selectedProduct.sellUnitOfSale || "Each"}
+                                        </span>
+                                      </span>
+                                    );
+                                  } else {
+                                    const sellingSum = selectedProduct.sellingQuantity || 0;
+                                    const isOutOfStock = sellingSum <= 0;
+                                    
+                                    return (
+                                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border text-[10px] ${
+                                        isOutOfStock 
+                                          ? "bg-rose-50 border-rose-250 text-rose-700" 
+                                          : "bg-emerald-50 border-emerald-250 text-emerald-700"
+                                      }`}>
+                                        <Globe className="w-3.5 h-3.5" />
+                                        <span>
+                                          Stock Available (All Warehouses): {sellingSum} {selectedProduct.sellingQuantity || 0} {selectedProduct.sellUnitOfSale || "Each"}
+                                        </span>
+                                      </span>
+                                    );
+                                  }
+                                })()}
+                              </div>
+                            )}
                           </div>
 
                           <div>
@@ -783,9 +894,11 @@ export default function SalesOrdersPage() {
                               onChange={(e) => handleLineChange(idx, "taxRate", Number(e.target.value))}
                               className="w-full mt-1 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800 focus:outline-none"
                             >
-                              <option value="0.20">20% Standard</option>
-                              <option value="0.05">5% Reduced</option>
-                              <option value="0.00">0% Zero-Rate</option>
+                              {taxOptions.map((opt) => (
+                                <option key={opt.rate} value={opt.rate}>
+                                  {opt.className}
+                                </option>
+                              ))}
                             </select>
                           </div>
                         </div>
@@ -837,6 +950,205 @@ export default function SalesOrdersPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Sales Order Detail Drawer */}
+      {selectedOrder && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/60 backdrop-blur-sm transition-all duration-300">
+          <div className="w-full max-w-3xl h-full bg-white border-l border-slate-200 shadow-2xl p-6 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-250">
+            
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-[#00b7e2] uppercase tracking-widest block font-mono">Sales Order Details</span>
+                <div className="flex items-center gap-2.5">
+                  <h3 className="text-xl font-bold text-slate-900 font-mono">{selectedOrder.orderNumber}</h3>
+                  <span className={`px-2 py-0.5 rounded border text-[9px] font-bold uppercase ${getStatusBadge(selectedOrder.status).style}`}>
+                    {getStatusBadge(selectedOrder.status).text}
+                  </span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedOrder(null)}
+                className="p-1.5 hover:bg-slate-50 border border-slate-200 text-slate-500 hover:text-slate-805 rounded-xl cursor-pointer"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="flex-1 py-5 space-y-6">
+              
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Header info */}
+                <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 space-y-3.5">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Order Specifications</h4>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between border-b border-slate-100 pb-1">
+                      <span className="text-slate-400">Customer:</span>
+                      <span className="font-bold text-slate-800">{selectedOrder.customerName}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-100 pb-1">
+                      <span className="text-slate-400">Order Date:</span>
+                      <span className="font-semibold text-slate-700">
+                        {new Date(selectedOrder.orderDate).toLocaleString(activeLanguage, {
+                          dateStyle: "medium",
+                          timeStyle: "short"
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-100 pb-1">
+                      <span className="text-slate-400">Currency Code:</span>
+                      <span className="font-mono font-bold text-slate-800">{selectedOrder.currencyCode}</span>
+                    </div>
+                    <div className="flex justify-between pb-0.5">
+                      <span className="text-slate-400">Exchange Rate:</span>
+                      <span className="font-mono text-slate-700">{selectedOrder.exchangeRateToBase.toFixed(4)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delivery Address Card */}
+                <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 space-y-3">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Shipping Address</h4>
+                  {selectedOrder.deliveryAddress ? (
+                    <div className="text-xs space-y-1">
+                      <div className="font-bold text-slate-800">{selectedOrder.deliveryAddress.addressName}</div>
+                      <div className="text-slate-600">{selectedOrder.deliveryAddress.addressLine1}</div>
+                      {selectedOrder.deliveryAddress.addressLine2 && (
+                        <div className="text-slate-600">{selectedOrder.deliveryAddress.addressLine2}</div>
+                      )}
+                      <div className="text-slate-600">
+                        {selectedOrder.deliveryAddress.city}
+                        {selectedOrder.deliveryAddress.state ? `, ${selectedOrder.deliveryAddress.state}` : ""}
+                        {` ${selectedOrder.deliveryAddress.postalCode}`}
+                      </div>
+                      <div className="font-bold text-slate-750 flex items-center gap-1 mt-1 font-sans">
+                        <Globe className="w-3.5 h-3.5 text-slate-450" />
+                        <span>{selectedOrder.deliveryAddress.country?.name || selectedOrder.deliveryAddress.countryId}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs italic text-slate-400 flex items-center justify-center h-full pb-4">
+                      Billing Address (Domestic / No Shipping address set)
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Line Items Table */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Ordered Products & Line Items</h4>
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[9px] tracking-wider">
+                        <th className="py-2.5 px-3">SKU</th>
+                        <th className="py-2.5 px-3">Product Name</th>
+                        <th className="py-2.5 px-3 text-right">Quantity</th>
+                        <th className="py-2.5 px-3">Unit</th>
+                        <th className="py-2.5 px-3 text-right">Unit Price</th>
+                        <th className="py-2.5 px-3 text-right">VAT Rate</th>
+                        <th className="py-2.5 px-3 text-right">Gross Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                      {(selectedOrder.lines || []).map((line: any, index: number) => {
+                        const netAmount = (line.quantity || 0) * (line.unitPrice || 0);
+                        const taxAmount = netAmount * (line.taxRate || 0);
+                        const grossAmount = netAmount + taxAmount;
+                        return (
+                          <tr key={line.id || index} className="hover:bg-slate-50/50">
+                            <td className="py-3 px-3 font-mono font-bold text-slate-800">{line.stockItem?.sku}</td>
+                            <td className="py-3 px-3 text-slate-900">{getTranslatedName(line.stockItem?.nameJson)}</td>
+                            <td className="py-3 px-3 text-right font-bold">{line.quantity}</td>
+                            <td className="py-3 px-3 text-slate-505 font-normal">{line.unitOfSale}</td>
+                            <td className="py-3 px-3 text-right font-mono">{formatMoney(line.unitPrice, selectedOrder.currencyCode)}</td>
+                            <td className="py-3 px-3 text-right text-slate-500">{(line.taxRate * 100).toFixed(0)}%</td>
+                            <td className="py-3 px-3 text-right font-bold text-slate-800 font-mono">
+                              {formatMoney(grossAmount, selectedOrder.currencyCode)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Order Totals Bar */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-bold text-slate-800">
+                <div className="flex gap-4">
+                  <div className="text-slate-500">
+                    Net Subtotal: <strong className="text-slate-800 font-mono">{formatMoney(selectedOrder.totalNet, selectedOrder.currencyCode)}</strong>
+                  </div>
+                  <div className="text-slate-500 border-l border-slate-200 pl-4">
+                    VAT Total: <strong className="text-slate-800 font-mono">{formatMoney(selectedOrder.totalTax, selectedOrder.currencyCode)}</strong>
+                  </div>
+                </div>
+                <div className="text-sm font-bold text-[#00b7e2] flex items-center gap-1.5">
+                  <span>Grand Total Gross:</span>
+                  <span className="font-mono text-base">{formatMoney(selectedOrder.totalGross, selectedOrder.currencyCode)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Drawer Footer / Quick Actions */}
+            <div className="flex gap-3 justify-end pt-4 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setSelectedOrder(null)}
+                className="px-4 py-2 border border-slate-200 text-slate-500 hover:text-slate-750 text-xs font-semibold rounded-lg cursor-pointer bg-white"
+              >
+                Close View
+              </button>
+              
+              {selectedOrder.status === 0 && (
+                (() => {
+                  const isAdminOrAccounts = user?.role === "CompanyAdmin" || user?.role === "Accounts" || user?.role === "GlobalAdmin";
+                  const isCreator = String(selectedOrder.createdByUserId) === String(user?.id);
+                  
+                  if (isAdminOrAccounts) {
+                    if (isCreator) {
+                      return (
+                        <span className="text-[10px] text-rose-500 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 font-semibold flex items-center gap-1">
+                          <Info className="w-3.5 h-3.5" /> Creator Restricted Approval
+                        </span>
+                      );
+                    }
+                    
+                    return (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleApprove(selectedOrder.id);
+                        }}
+                        disabled={processingId === selectedOrder.id}
+                        className="px-4 py-2 bg-[#00b7e2] hover:bg-[#009dc4] text-white font-semibold text-xs rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer active:scale-95 shadow-sm shadow-[#00b7e2]/10"
+                      >
+                        {processingId === selectedOrder.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <span>Approve Order</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+                    );
+                  }
+                  
+                  return (
+                    <span className="px-3 py-2 text-[10px] font-bold bg-[#fef9c3] border border-[#fef08a] text-[#854d0e] rounded-lg uppercase">
+                      Awaiting Audit
+                    </span>
+                  );
+                })()
+              )}
+            </div>
           </div>
         </div>
       )}
