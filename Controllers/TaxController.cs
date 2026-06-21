@@ -20,6 +20,14 @@ public class TaxController : ApiControllerBase
         _context = context;
     }
 
+    [HttpGet("classes")]
+    [Authorize(Roles = "Accounts,CompanyAdmin,GlobalAdmin")]
+    public async Task<IActionResult> GetTaxClasses()
+    {
+        var classes = await _context.TaxClasses.ToListAsync();
+        return Ok(classes);
+    }
+
     // ==========================================
     // TAX ZONES ENDPOINTS
     // ==========================================
