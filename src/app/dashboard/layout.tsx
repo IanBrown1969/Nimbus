@@ -207,7 +207,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       name: "Tax Management",
       icon: Percent,
       items: [
-        { name: "VAT Returns (HMRC)", href: "/dashboard/finance/vat" }
+        { name: "VAT Returns (HMRC)", href: "/dashboard/finance/vat" },
+        { name: "Tax Setup & Zones", href: "/dashboard/finance/tax-setup" }
       ]
     },
     {
@@ -278,7 +279,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       items: [
         { name: "Marketplace Add-ons", href: "/dashboard/settings/plugins" },
         { name: "Role Permissions (RBAC)", href: "/dashboard/settings/rbac" },
-        { name: "Accounting Periods", href: "/dashboard/settings/periods" }
+        { name: "Accounting Periods", href: "/dashboard/settings/periods" },
+        { name: "Country Management", href: "/dashboard/settings/countries" }
       ]
     }
   ];
@@ -763,6 +765,7 @@ function getModuleKeyForPath(path: string): string | null {
   if (path.startsWith("/dashboard/settings/rbac")) return "admin";
   if (path.startsWith("/dashboard/settings/plugins")) return "admin";
   if (path.startsWith("/dashboard/settings/periods")) return "admin";
+  if (path.startsWith("/dashboard/settings/countries")) return "admin";
   if (path.startsWith("/dashboard/settings/pricing")) return "inventory";
 
   if (path === "/dashboard/finance" || path === "/dashboard/finance/") {
@@ -770,6 +773,7 @@ function getModuleKeyForPath(path: string): string | null {
   }
   if (path.startsWith("/dashboard/finance/accounts")) return "financials";
   if (path.startsWith("/dashboard/finance/vat")) return "financials";
+  if (path.startsWith("/dashboard/finance/tax-setup")) return "financials";
   if (path.startsWith("/dashboard/finance/profit-loss")) return "financials";
   if (path.startsWith("/dashboard/finance/balance-sheet")) return "financials";
   if (path.startsWith("/dashboard/finance/reconciliation")) return "banking";
