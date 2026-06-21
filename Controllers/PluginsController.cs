@@ -30,19 +30,22 @@ public class PluginsController : ApiControllerBase
         var allPlugins = await _catalogContext.Plugins.ToListAsync();
 
         // 2. Get active tenant plugins from Catalog DB
-        var activeTenantPlugins = await _catalogContext.TenantPlugins
-            .Where(tp => tp.TenantId == UserTenantId && tp.IsActive)
-            .Select(tp => tp.PluginId)
+        var tenantPlugins = await _catalogContext.TenantPlugins
+            .Where(tp => tp.TenantId == UserTenantId)
             .ToListAsync();
 
-        var result = allPlugins.Select(p => new
-        {
-            p.Id,
-            p.Code,
-            p.Name,
-            p.Description,
-            p.MonthlyPrice,
-            IsSubscribed = activeTenantPlugins.Contains(p.Id)
+        var result = allPlugins.Select(p => {
+            var sub = tenantPlugins.FirstOrDefault(tp => tp.PluginId == p.Id);
+            return new
+            {
+                p.Id,
+                p.Code,
+                p.Name,
+                p.Description,
+                p.MonthlyPrice,
+                IsSubscribed = sub != null && sub.IsActive,
+                ConfigurationSettingsJson = sub?.ConfigurationSettingsJson
+            };
         });
 
         return Ok(result);
@@ -62,13 +65,46 @@ public class PluginsController : ApiControllerBase
         var catalogTenantPlugin = await _catalogContext.TenantPlugins
             .FirstOrDefaultAsync(tp => tp.TenantId == UserTenantId && tp.PluginId == plugin.Id);
 
-        bool nextActiveStatus;
+        bool nextActiveStatus = catalogTenantPlugin != null ? !catalogTenantPlugin.IsActive : true;
+
+        // Validation for CDN Storage activation
+        if (plugin.Code == "CDN" && nextActiveStatus)
+        {
+            if (string.IsNullOrWhiteSpace(request.ConfigurationSettingsJson))
+            {
+                return BadRequest(new { message = "Azure Cloud Storage & CDN configuration is required to activate this module." });
+            }
+            try
+            {
+                var settings = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, string>>(request.ConfigurationSettingsJson);
+                if (settings == null || 
+                    !settings.ContainsKey("connectionString") || string.IsNullOrWhiteSpace(settings["connectionString"]) ||
+                    !settings.ContainsKey("containerName") || string.IsNullOrWhiteSpace(settings["containerName"]) ||
+                    !settings.ContainsKey("cdnEndpointUrl") || string.IsNullOrWhiteSpace(settings["cdnEndpointUrl"]))
+                {
+                    return BadRequest(new { message = "Azure Cloud Storage configuration is missing required parameters (ConnectionString, ContainerName, CdnEndpointUrl)." });
+                }
+            }
+            catch
+            {
+                return BadRequest(new { message = "Azure Cloud Storage configuration contains invalid JSON settings." });
+            }
+        }
+
         if (catalogTenantPlugin != null)
         {
             catalogTenantPlugin.IsActive = !catalogTenantPlugin.IsActive;
             if (catalogTenantPlugin.IsActive)
             {
                 catalogTenantPlugin.EnabledDate = DateTime.UtcNow;
+                if (!string.IsNullOrEmpty(request.ConfigurationSettingsJson))
+                {
+                    catalogTenantPlugin.ConfigurationSettingsJson = request.ConfigurationSettingsJson;
+                }
+            }
+            else
+            {
+                catalogTenantPlugin.ConfigurationSettingsJson = null; // Clear config on deactivation
             }
             nextActiveStatus = catalogTenantPlugin.IsActive;
         }
@@ -79,7 +115,8 @@ public class PluginsController : ApiControllerBase
                 TenantId = UserTenantId,
                 PluginId = plugin.Id,
                 IsActive = true,
-                EnabledDate = DateTime.UtcNow
+                EnabledDate = DateTime.UtcNow,
+                ConfigurationSettingsJson = request.ConfigurationSettingsJson
             };
             _catalogContext.TenantPlugins.Add(catalogTenantPlugin);
             nextActiveStatus = true;
@@ -96,6 +133,14 @@ public class PluginsController : ApiControllerBase
             if (nextActiveStatus)
             {
                 tenantPlugin.EnabledDate = DateTime.UtcNow;
+                if (!string.IsNullOrEmpty(request.ConfigurationSettingsJson))
+                {
+                    tenantPlugin.ConfigurationSettingsJson = request.ConfigurationSettingsJson;
+                }
+            }
+            else
+            {
+                tenantPlugin.ConfigurationSettingsJson = null; // Clear config on deactivation
             }
         }
         else
@@ -105,7 +150,8 @@ public class PluginsController : ApiControllerBase
                 TenantId = UserTenantId,
                 PluginId = plugin.Id,
                 IsActive = nextActiveStatus,
-                EnabledDate = DateTime.UtcNow
+                EnabledDate = DateTime.UtcNow,
+                ConfigurationSettingsJson = nextActiveStatus ? request.ConfigurationSettingsJson : null
             };
             _context.TenantPlugins.Add(tenantPlugin);
         }
@@ -119,8 +165,72 @@ public class PluginsController : ApiControllerBase
         });
     }
 
+    [HttpPost("{code}/config")]
+    [Authorize(Roles = "CompanyAdmin,GlobalAdmin")]
+    public async Task<IActionResult> UpdatePluginConfig(string code, [FromBody] UpdatePluginConfigRequest request)
+    {
+        var plugin = await _catalogContext.Plugins.FirstOrDefaultAsync(p => p.Code == code && p.IsActive);
+        if (plugin == null)
+        {
+            return NotFound(new { message = $"Plugin '{code}' not found." });
+        }
+
+        // Validate config
+        if (code == "CDN")
+        {
+            if (string.IsNullOrWhiteSpace(request.ConfigurationSettingsJson))
+            {
+                return BadRequest(new { message = "Azure Cloud Storage & CDN configuration cannot be empty." });
+            }
+            try
+            {
+                var settings = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, string>>(request.ConfigurationSettingsJson);
+                if (settings == null || 
+                    !settings.ContainsKey("connectionString") || string.IsNullOrWhiteSpace(settings["connectionString"]) ||
+                    !settings.ContainsKey("containerName") || string.IsNullOrWhiteSpace(settings["containerName"]) ||
+                    !settings.ContainsKey("cdnEndpointUrl") || string.IsNullOrWhiteSpace(settings["cdnEndpointUrl"]))
+                {
+                    return BadRequest(new { message = "Azure Cloud Storage configuration is missing required parameters." });
+                }
+            }
+            catch
+            {
+                return BadRequest(new { message = "Azure Cloud Storage configuration contains invalid JSON settings." });
+            }
+        }
+
+        // Save inside Catalog DB
+        var catalogTenantPlugin = await _catalogContext.TenantPlugins
+            .FirstOrDefaultAsync(tp => tp.TenantId == UserTenantId && tp.PluginId == plugin.Id);
+
+        if (catalogTenantPlugin == null || !catalogTenantPlugin.IsActive)
+        {
+            return BadRequest(new { message = "Cannot configure a plugin that is not active." });
+        }
+        catalogTenantPlugin.ConfigurationSettingsJson = request.ConfigurationSettingsJson;
+        await _catalogContext.SaveChangesAsync();
+
+        // Save inside Tenant DB
+        var tenantPlugin = await _context.TenantPlugins
+            .FirstOrDefaultAsync(tp => tp.PluginId == plugin.Id);
+
+        if (tenantPlugin != null)
+        {
+            tenantPlugin.ConfigurationSettingsJson = request.ConfigurationSettingsJson;
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok(new { message = $"Successfully updated {plugin.Name} plugin configuration settings." });
+    }
+
     public class TogglePluginRequest
     {
         public string PluginCode { get; set; } = null!;
+        public string? ConfigurationSettingsJson { get; set; }
+    }
+
+    public class UpdatePluginConfigRequest
+    {
+        public string ConfigurationSettingsJson { get; set; } = null!;
     }
 }
