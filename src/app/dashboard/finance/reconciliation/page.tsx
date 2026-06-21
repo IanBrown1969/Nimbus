@@ -246,7 +246,7 @@ export default function AccountReconciliationPage() {
           alert("Failed to import statement lines.");
         }
       } catch (err) {
-        Console.error("Import error:", err);
+        console.error("Import error:", err);
       } finally {
         setIsImporting(false);
       }
@@ -539,7 +539,7 @@ export default function AccountReconciliationPage() {
                         {/* Actions */}
                         <div className="flex gap-2 shrink-0">
                           <button 
-                            onClick={() => handleRejectSuggestion(tx.id)}
+                            onClick={() => handleRejectMatch(tx.id)}
                             className="p-2 border border-slate-200 hover:border-slate-350 hover:bg-slate-50 text-slate-500 hover:text-slate-800 rounded-xl cursor-pointer transition-colors active:scale-95"
                             title="Reject Match"
                           >

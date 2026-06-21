@@ -31,6 +31,7 @@ interface AddressInput {
   countryId: number | "";
   addressType: "Billing" | "Shipping";
   isDefault: boolean;
+  taxCode?: string;
 }
 
 export default function CustomersPage() {
@@ -76,6 +77,7 @@ export default function CustomersPage() {
   const [newAddrCountryId, setNewAddrCountryId] = useState<number | "">("");
   const [newAddrType, setNewAddrType] = useState<"Billing" | "Shipping">("Billing");
   const [newAddrDefault, setNewAddrDefault] = useState(false);
+  const [newAddrTaxCode, setNewAddrTaxCode] = useState("");
   const [addingAddress, setAddingAddress] = useState(false);
 
   // Aged Debt modal state
@@ -114,7 +116,7 @@ export default function CustomersPage() {
 
   const fetchCountries = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/finance/countries", {
+      const res = await axios.get("http://localhost:5000/api/countries", {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCountries(res.data);
@@ -189,7 +191,8 @@ export default function CustomersPage() {
         postalCode: newAddrPostal,
         countryId: newAddrCountryId === "" ? null : Number(newAddrCountryId),
         addressType: newAddrType,
-        isDefault: newAddrDefault
+        isDefault: newAddrDefault,
+        taxCode: newAddrTaxCode === "" ? null : newAddrTaxCode
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -203,6 +206,7 @@ export default function CustomersPage() {
       setNewAddrCountryId("");
       setNewAddrType("Billing");
       setNewAddrDefault(false);
+      setNewAddrTaxCode("");
       
       alert("Address successfully added!");
       fetchCustomers();
@@ -225,7 +229,8 @@ export default function CustomersPage() {
         postalCode: "",
         countryId: "",
         addressType: "Billing",
-        isDefault: prev.filter(a => a.addressType === "Billing").length === 0
+        isDefault: prev.filter(a => a.addressType === "Billing").length === 0,
+        taxCode: ""
       }
     ]);
   };
@@ -647,6 +652,17 @@ export default function CustomersPage() {
                             </select>
                           </div>
                         </div>
+                        
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500">Tax Code (VAT Exemption)</label>
+                          <input
+                            type="text"
+                            value={addr.taxCode || ""}
+                            onChange={(e) => handleAddressChange(idx, "taxCode", e.target.value)}
+                            placeholder="e.g. GB123456789"
+                            className="w-full mt-0.5 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800"
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -834,6 +850,7 @@ export default function CustomersPage() {
                       <span className="block text-slate-600">{addr.addressLine1} {addr.addressLine2 && `, ${addr.addressLine2}`}</span>
                       <span className="block text-slate-650">{addr.city}, {addr.postalCode}</span>
                       {addr.country && <span className="block text-slate-500 font-semibold">{addr.country.name}</span>}
+                      {addr.taxCode && <span className="block text-emerald-700 font-semibold text-[10px]">VAT ID / Tax Code: {addr.taxCode}</span>}
                     </div>
                   ))
                 )}
@@ -938,16 +955,30 @@ export default function CustomersPage() {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center pt-2">
-                <label className="flex items-center gap-1.5 cursor-pointer text-slate-600 text-[10px] select-none">
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <div className="flex items-center pl-1 pt-3">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-slate-650 text-[10px] select-none">
+                    <input
+                      type="checkbox"
+                      checked={newAddrDefault}
+                      onChange={(e) => setNewAddrDefault(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded text-violet-650 focus:ring-violet-500 border-slate-350"
+                    />
+                    <span>Set Default Address</span>
+                  </label>
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold uppercase text-slate-500">Tax Code (VAT Exemption)</label>
                   <input
-                    type="checkbox"
-                    checked={newAddrDefault}
-                    onChange={(e) => setNewAddrDefault(e.target.checked)}
-                    className="w-3.5 h-3.5 rounded text-violet-600"
+                    type="text"
+                    value={newAddrTaxCode}
+                    onChange={(e) => setNewAddrTaxCode(e.target.value)}
+                    placeholder="e.g. GB123456789"
+                    className="w-full mt-0.5 text-[11px] px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800 font-medium"
                   />
-                  <span>Set as Default Address</span>
-                </label>
+                </div>
+              </div>
+              <div className="flex justify-end pt-2">
                 <button
                   type="submit"
                   disabled={addingAddress}

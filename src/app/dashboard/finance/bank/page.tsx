@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import axios from "axios";
-import { Landmark, ArrowDownLeft, ArrowUpRight, CheckCircle2, RefreshCw, Layers, Puzzle } from "lucide-react";
+import { Landmark, ArrowDownLeft, ArrowUpRight, CheckCircle2, RefreshCw, Layers, Puzzle, AlertCircle } from "lucide-react";
 
 export default function BankPage() {
   const { token, activeLanguage, plugins } = useApp();
