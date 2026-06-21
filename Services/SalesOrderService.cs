@@ -84,40 +84,7 @@ public class SalesOrderService : ISalesOrderService
                 }
             }
 
-            decimal resolvedTaxRate = reqLine.TaxRate;
-            if (isVatPluginActive)
-            {
-                long? countryId = null;
-                var customer = await _context.Customers
-                    .Include(c => c.Country)
-                    .FirstOrDefaultAsync(c => c.Name == request.CustomerName || c.CompanyName == request.CustomerName);
-                
-                if (customer != null && customer.CountryId.HasValue)
-                {
-                    countryId = customer.CountryId.Value;
-                }
-                else
-                {
-                    var contact = await _context.Contacts
-                        .Include(c => c.Country)
-                        .FirstOrDefaultAsync(c => c.Name == request.CustomerName || c.CompanyName == request.CustomerName);
-                    
-                    if (contact != null && contact.CountryId.HasValue)
-                    {
-                        countryId = contact.CountryId.Value;
-                    }
-                }
-
-                if (countryId.HasValue && stockItem.TaxClassId.HasValue)
-                {
-                    var taxRateRule = await _context.TaxRates
-                        .FirstOrDefaultAsync(r => r.CountryId == countryId.Value && r.TaxClassId == stockItem.TaxClassId.Value);
-                    if (taxRateRule != null)
-                    {
-                        resolvedTaxRate = taxRateRule.Rate;
-                    }
-                }
-            }
+            decimal resolvedTaxRate = await ResolveTaxRateAsync(request.CustomerName, stockItem, reqLine.TaxRate);
 
             var line = new SalesOrderLine
             {
@@ -201,5 +168,102 @@ public class SalesOrderService : ISalesOrderService
 
         _context.PickLists.Add(pickList);
         await _context.SaveChangesAsync();
+    }
+
+    private async Task<decimal> ResolveTaxRateAsync(string customerName, StockItem stockItem, decimal requestedTaxRate)
+    {
+        var isVatPluginActive = await _context.TenantPlugins.AnyAsync(tp => tp.Plugin.Code == "VAT" && tp.IsActive);
+        if (!isVatPluginActive || !stockItem.TaxClassId.HasValue)
+        {
+            return requestedTaxRate;
+        }
+
+        var customer = await _context.Customers
+            .FirstOrDefaultAsync(c => c.Name == customerName || c.CompanyName == customerName);
+
+        long? deliveryCountryId = null;
+        CustomerAddress shippingAddress = null;
+
+        if (customer != null)
+        {
+            shippingAddress = await _context.CustomerAddresses
+                .FirstOrDefaultAsync(a => a.CustomerId == customer.Id && a.AddressType == "Shipping" && a.IsDefault);
+            if (shippingAddress == null)
+            {
+                shippingAddress = await _context.CustomerAddresses
+                    .FirstOrDefaultAsync(a => a.CustomerId == customer.Id && a.AddressType == "Shipping");
+            }
+            deliveryCountryId = shippingAddress?.CountryId ?? customer.CountryId;
+        }
+        else
+        {
+            var contact = await _context.Contacts
+                .FirstOrDefaultAsync(c => c.Name == customerName || c.CompanyName == customerName);
+            if (contact != null)
+            {
+                deliveryCountryId = contact.CountryId;
+            }
+        }
+
+        if (!deliveryCountryId.HasValue)
+        {
+            return requestedTaxRate;
+        }
+
+        var baseCountries = await _context.Countries.Where(c => c.IsBaseCountry && c.IsActive).ToListAsync();
+        var baseCountry = baseCountries.FirstOrDefault(bc => bc.Id == deliveryCountryId.Value) 
+                          ?? baseCountries.FirstOrDefault() 
+                          ?? await _context.Countries.FirstOrDefaultAsync(c => c.Code == "GB");
+
+        if (baseCountry == null)
+        {
+            return requestedTaxRate;
+        }
+
+        var deliveryCountry = await _context.Countries.FindAsync(deliveryCountryId.Value);
+        if (deliveryCountry == null)
+        {
+            return requestedTaxRate;
+        }
+
+        // Rule 1: Domestic Sale
+        if (baseCountry.Id == deliveryCountryId.Value)
+        {
+            var rateRule = await _context.TaxRates
+                .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && r.DeliveryCountryId == deliveryCountryId.Value && r.TaxClassId == stockItem.TaxClassId.Value);
+            return rateRule?.Rate ?? requestedTaxRate;
+        }
+
+        // Rule 2: Cross-Border Sale
+        var baseZoneId = baseCountry.TaxZoneId;
+        var deliveryZoneId = deliveryCountry.TaxZoneId;
+
+        // If in different zones
+        if (baseZoneId.HasValue && deliveryZoneId.HasValue && baseZoneId.Value != deliveryZoneId.Value)
+        {
+            if (shippingAddress != null && !string.IsNullOrWhiteSpace(shippingAddress.TaxCode))
+            {
+                return 0.0m;
+            }
+            else
+            {
+                var rateRule = await _context.TaxRates
+                    .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && r.DeliveryCountryId == baseCountry.Id && r.TaxClassId == stockItem.TaxClassId.Value);
+                return rateRule?.Rate ?? requestedTaxRate;
+            }
+        }
+
+        // Same zone or no zones set: query specific combination
+        var crossBorderRule = await _context.TaxRates
+            .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && r.DeliveryCountryId == deliveryCountryId.Value && r.TaxClassId == stockItem.TaxClassId.Value);
+        if (crossBorderRule != null)
+        {
+            return crossBorderRule.Rate;
+        }
+
+        // Fallback to base country domestic tax
+        var fallbackRule = await _context.TaxRates
+            .FirstOrDefaultAsync(r => r.BaseCountryId == baseCountry.Id && r.DeliveryCountryId == baseCountry.Id && r.TaxClassId == stockItem.TaxClassId.Value);
+        return fallbackRule?.Rate ?? requestedTaxRate;
     }
 }

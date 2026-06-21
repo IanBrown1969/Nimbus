@@ -91,6 +91,30 @@ public class PluginsController : ApiControllerBase
             }
         }
 
+        // Validation for BNK Open Banking activation
+        if (plugin.Code == "BNK" && nextActiveStatus)
+        {
+            if (string.IsNullOrWhiteSpace(request.ConfigurationSettingsJson))
+            {
+                return BadRequest(new { message = "Bank connection settings are required to activate this module." });
+            }
+            try
+            {
+                var settings = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, string>>(request.ConfigurationSettingsJson);
+                if (settings == null || 
+                    !settings.ContainsKey("bank") || string.IsNullOrWhiteSpace(settings["bank"]) ||
+                    !settings.ContainsKey("clientId") || string.IsNullOrWhiteSpace(settings["clientId"]) ||
+                    !settings.ContainsKey("clientSecret") || string.IsNullOrWhiteSpace(settings["clientSecret"]))
+                {
+                    return BadRequest(new { message = "Bank connection settings are missing required parameters (bank, clientId, clientSecret)." });
+                }
+            }
+            catch
+            {
+                return BadRequest(new { message = "Bank connection configurations contain invalid JSON settings." });
+            }
+        }
+
         if (catalogTenantPlugin != null)
         {
             catalogTenantPlugin.IsActive = !catalogTenantPlugin.IsActive;
@@ -196,6 +220,29 @@ public class PluginsController : ApiControllerBase
             catch
             {
                 return BadRequest(new { message = "Azure Cloud Storage configuration contains invalid JSON settings." });
+            }
+        }
+
+        if (code == "BNK")
+        {
+            if (string.IsNullOrWhiteSpace(request.ConfigurationSettingsJson))
+            {
+                return BadRequest(new { message = "Bank connection settings cannot be empty." });
+            }
+            try
+            {
+                var settings = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, string>>(request.ConfigurationSettingsJson);
+                if (settings == null || 
+                    !settings.ContainsKey("bank") || string.IsNullOrWhiteSpace(settings["bank"]) ||
+                    !settings.ContainsKey("clientId") || string.IsNullOrWhiteSpace(settings["clientId"]) ||
+                    !settings.ContainsKey("clientSecret") || string.IsNullOrWhiteSpace(settings["clientSecret"]))
+                {
+                    return BadRequest(new { message = "Bank connection settings are missing required parameters (bank, clientId, clientSecret)." });
+                }
+            }
+            catch
+            {
+                return BadRequest(new { message = "Bank connection configurations contain invalid JSON settings." });
             }
         }
 
